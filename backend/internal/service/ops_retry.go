@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/domain"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -528,7 +527,7 @@ func (s *OpsService) selectAccountForRetry(ctx context.Context, reqType opsRetry
 func extractRetryModelAndStream(reqType opsRetryRequestType, errorLog *OpsErrorLogDetail, body []byte) (model string, stream bool, err error) {
 	switch reqType {
 	case opsRetryTypeMessages:
-		parsed, parseErr := ParseGatewayRequest(body, domain.PlatformAnthropic)
+		parsed, parseErr := ParseGatewayRequest(body, "anthropic")
 		if parseErr != nil {
 			return "", false, fmt.Errorf("failed to parse messages request body: %w", parseErr)
 		}
@@ -567,41 +566,18 @@ func (s *OpsService) executeWithAccount(ctx context.Context, reqType opsRetryReq
 		}
 		_, err = s.openAIGatewayService.Forward(ctx, c, account, body)
 	case opsRetryTypeGeminiV1B:
-		if s.geminiCompatService == nil || s.antigravityGatewayService == nil {
-			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini services not available"}
-		}
-		modelName := strings.TrimSpace(errorLog.Model)
-		action := "generateContent"
-		if errorLog.Stream {
-			action = "streamGenerateContent"
-		}
-		if account.Platform == PlatformAntigravity {
-			_, err = s.antigravityGatewayService.ForwardGemini(ctx, c, account, modelName, action, errorLog.Stream, body, false)
-		} else {
-			_, err = s.geminiCompatService.ForwardNative(ctx, c, account, modelName, action, errorLog.Stream, body)
-		}
+		// Gemini V1beta retry path removed
+		return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini retry not available"}
 	case opsRetryTypeMessages:
-		switch account.Platform {
-		case PlatformAntigravity:
-			if s.antigravityGatewayService == nil {
-				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "antigravity gateway service not available"}
-			}
-			_, err = s.antigravityGatewayService.Forward(ctx, c, account, body, false)
-		case PlatformGemini:
-			if s.geminiCompatService == nil {
-				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini gateway service not available"}
-			}
-			_, err = s.geminiCompatService.Forward(ctx, c, account, body)
-		default:
-			if s.gatewayService == nil {
-				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gateway service not available"}
-			}
-			parsedReq, parseErr := ParseGatewayRequest(body, domain.PlatformAnthropic)
-			if parseErr != nil {
-				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "failed to parse request body"}
-			}
-			_, err = s.gatewayService.Forward(ctx, c, account, parsedReq)
+		// Gemini/Antigravity platform removed - use gateway service directly
+		if s.gatewayService == nil {
+			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gateway service not available"}
 		}
+		parsedReq, parseErr := ParseGatewayRequest(body, "anthropic")
+		if parseErr != nil {
+			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: fmt.Sprintf("parse request failed: %s", parseErr.Error())}
+		}
+		_, err = s.gatewayService.Forward(ctx, c, account, parsedReq)
 	default:
 		return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "unsupported retry type"}
 	}

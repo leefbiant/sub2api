@@ -15,7 +15,7 @@ const (
 )
 
 // ClaudeTokenCache token cache interface.
-type ClaudeTokenCache = GeminiTokenCache
+type ClaudeTokenCache = TokenCache
 
 // ClaudeTokenProvider manages access_token for Claude OAuth accounts.
 type ClaudeTokenProvider struct {
@@ -56,7 +56,7 @@ func (p *ClaudeTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if account == nil {
 		return "", errors.New("account is nil")
 	}
-	if account.Platform != PlatformAnthropic || account.Type != AccountTypeOAuth {
+	if account.Platform != "anthropic" || account.Type != AccountTypeOAuth {
 		return "", errors.New("not an anthropic oauth account")
 	}
 

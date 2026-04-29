@@ -2253,7 +2253,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					bodyModified = true
 					markPatchDelete("max_output_tokens")
 				}
-			case PlatformAnthropic:
+			case "anthropic":
 				// For Anthropic (Claude), convert to max_tokens
 				delete(reqBody, "max_output_tokens")
 				markPatchDelete("max_output_tokens")
@@ -2262,11 +2262,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					disablePatch()
 				}
 				bodyModified = true
-			case PlatformGemini:
-				// For Gemini, remove (will be handled by Gemini-specific transform)
-				delete(reqBody, "max_output_tokens")
-				bodyModified = true
-				markPatchDelete("max_output_tokens")
+			// case "gemini": // ❌ REMOVED: Gemini 平台已删除
 			default:
 				// For unknown platforms, remove to be safe
 				delete(reqBody, "max_output_tokens")

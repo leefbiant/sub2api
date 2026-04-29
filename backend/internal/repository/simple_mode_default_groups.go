@@ -15,10 +15,10 @@ func ensureSimpleModeDefaultGroups(ctx context.Context, client *dbent.Client) er
 	}
 
 	requiredByPlatform := map[string]int{
-		service.PlatformAnthropic:   1,
+		"anthropic":   1,
 		service.PlatformOpenAI:      1,
-		service.PlatformGemini:      1,
-		service.PlatformAntigravity: 2,
+		"gemini":      1,
+		"antigravity": 2,
 	}
 
 	for platform, minCount := range requiredByPlatform {
@@ -29,7 +29,7 @@ func ensureSimpleModeDefaultGroups(ctx context.Context, client *dbent.Client) er
 			return fmt.Errorf("count groups for platform %s: %w", platform, err)
 		}
 
-		if platform == service.PlatformAntigravity {
+		if platform == "antigravity" {
 			if count < minCount {
 				for i := count; i < minCount; i++ {
 					name := fmt.Sprintf("%s-default-%d", platform, i+1)

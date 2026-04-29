@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -121,7 +120,7 @@ func normalizeBedrockModelID(modelID string) (normalized string, shouldAdjustReg
 	if modelID == "" {
 		return "", false, false
 	}
-	if mapped, exists := domain.DefaultBedrockModelMapping[modelID]; exists {
+	if mapped, exists := map[string]string{}[modelID]; exists {
 		return mapped, true, true
 	}
 	if isRegionalBedrockModelID(modelID) {

@@ -33,9 +33,9 @@ func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedMo
 	}
 
 	modelKey := a.GetMappedModel(requestedModel)
-	if a.Platform == PlatformAntigravity {
-		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
-	}
+	// if a.Platform == "antigravity" {
+	// 	modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
+	// }
 	modelKey = strings.TrimSpace(modelKey)
 	if modelKey == "" {
 		return false
@@ -55,9 +55,9 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 	}
 
 	modelKey := a.GetMappedModel(requestedModel)
-	if a.Platform == PlatformAntigravity {
-		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
-	}
+	// if a.Platform == "antigravity" {
+	// 	modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
+	// }
 	modelKey = strings.TrimSpace(modelKey)
 	if modelKey == "" {
 		return 0
@@ -65,17 +65,17 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 	return a.getRateLimitRemainingForKey(modelKey)
 }
 
-func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {
-	modelKey := mapAntigravityModel(account, requestedModel)
-	if modelKey == "" {
-		return ""
-	}
-	// thinking 会影响 Antigravity 最终模型名（例如 claude-sonnet-4-5 -> claude-sonnet-4-5-thinking）
-	if enabled, ok := ThinkingEnabledFromContext(ctx); ok {
-		modelKey = applyThinkingModelSuffix(modelKey, enabled)
-	}
-	return modelKey
-}
+// resolveFinalAntigravityModelKey ❌ REMOVED: Antigravity 平台已删除，始终返回 ""
+// func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {
+// 	modelKey := mapAntigravityModel(account, requestedModel)
+// 	if modelKey == "" {
+// 		return ""
+// 	}
+// 	if enabled, ok := ThinkingEnabledFromContext(ctx); ok {
+// 		modelKey = applyThinkingModelSuffix(modelKey, enabled)
+// 	}
+// 	return modelKey
+// }
 
 func (a *Account) modelRateLimitResetAt(scope string) *time.Time {
 	if a == nil || a.Extra == nil || scope == "" {

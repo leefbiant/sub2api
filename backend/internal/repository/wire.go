@@ -111,7 +111,6 @@ var ProviderSet = wire.NewSet(
 	NewIdentityCache,
 	NewRedeemCache,
 	NewUpdateCache,
-	NewGeminiTokenCache,
 	ProvideSchedulerCache,
 	NewSchedulerOutboxRepository,
 	NewProxyLatencyCache,
@@ -136,9 +135,6 @@ var ProviderSet = wire.NewSet(
 	NewClaudeOAuthClient,
 	NewHTTPUpstream,
 	NewOpenAIOAuthClient,
-	NewGeminiOAuthClient,
-	NewGeminiCliCodeAssistClient,
-	NewGeminiDriveClient,
 
 	ProvideEnt,
 	ProvideSQLDB,

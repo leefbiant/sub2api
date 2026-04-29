@@ -1,5 +1,7 @@
 package service
 
+
+
 import (
 	"bufio"
 	"bytes"
@@ -19,12 +21,16 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+// Stub constants for removed Gemini/Antigravity platforms
+const geminiCliBaseURL = "https://aiplatform.google.com"
+const geminiCliUserAgent = "sub2api/gemini-cli"
+
 
 // sseDataPrefix matches SSE data lines with optional whitespace after colon.
 // Some upstream APIs return non-standard "data:" without space (should be "data: ").
@@ -63,8 +69,6 @@ func isOpenAIImageModel(model string) bool {
 // AccountTestService handles account testing operations
 type AccountTestService struct {
 	accountRepo               AccountRepository
-	geminiTokenProvider       *GeminiTokenProvider
-	antigravityGatewayService *AntigravityGatewayService
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
 	tlsFPProfileService       *TLSFingerprintProfileService
@@ -73,19 +77,15 @@ type AccountTestService struct {
 // NewAccountTestService creates a new AccountTestService
 func NewAccountTestService(
 	accountRepo AccountRepository,
-	geminiTokenProvider *GeminiTokenProvider,
-	antigravityGatewayService *AntigravityGatewayService,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	tlsFPProfileService *TLSFingerprintProfileService,
 ) *AccountTestService {
 	return &AccountTestService{
-		accountRepo:               accountRepo,
-		geminiTokenProvider:       geminiTokenProvider,
-		antigravityGatewayService: antigravityGatewayService,
-		httpUpstream:              httpUpstream,
-		cfg:                       cfg,
-		tlsFPProfileService:       tlsFPProfileService,
+		accountRepo:        accountRepo,
+		httpUpstream:       httpUpstream,
+		cfg:                cfg,
+		tlsFPProfileService: tlsFPProfileService,
 	}
 }
 
@@ -178,14 +178,6 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	// Route to platform-specific test method
 	if account.IsOpenAI() {
 		return s.testOpenAIAccountConnection(c, account, modelID, prompt, normalizeAccountTestMode(mode))
-	}
-
-	if account.IsGemini() {
-		return s.testGeminiAccountConnection(c, account, modelID, prompt)
-	}
-
-	if account.Platform == PlatformAntigravity {
-		return s.routeAntigravityTest(c, account, modelID, prompt)
 	}
 
 	return s.testClaudeAccountConnection(c, account, modelID)
@@ -708,7 +700,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	// Determine the model to use
 	testModelID := modelID
 	if testModelID == "" {
-		testModelID = geminicli.DefaultTestModel
+		testModelID = "gemini-cli-default"
 	}
 
 	// For API Key accounts with model mapping, map the model
@@ -787,41 +779,8 @@ func (s *AccountTestService) routeAntigravityTest(c *gin.Context, account *Accou
 // testAntigravityAccountConnection tests an Antigravity account's connection
 // 支持 Claude 和 Gemini 两种协议，使用非流式请求
 func (s *AccountTestService) testAntigravityAccountConnection(c *gin.Context, account *Account, modelID string) error {
-	ctx := c.Request.Context()
-
-	// 默认模型：Claude 使用 claude-sonnet-4-5，Gemini 使用 gemini-3-pro-preview
-	testModelID := modelID
-	if testModelID == "" {
-		testModelID = "claude-sonnet-4-5"
-	}
-
-	if s.antigravityGatewayService == nil {
-		return s.sendErrorAndEnd(c, "Antigravity gateway service not configured")
-	}
-
-	// Set SSE headers
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("X-Accel-Buffering", "no")
-	c.Writer.Flush()
-
-	// Send test_start event
-	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
-
-	// 调用 AntigravityGatewayService.TestConnection（复用协议转换逻辑）
-	result, err := s.antigravityGatewayService.TestConnection(ctx, account, testModelID)
-	if err != nil {
-		return s.sendErrorAndEnd(c, err.Error())
-	}
-
-	// 发送响应内容
-	if result.Text != "" {
-		s.sendEvent(c, TestEvent{Type: "content", Text: result.Text})
-	}
-
-	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-	return nil
+	// Antigravity platform removed
+	return s.sendErrorAndEnd(c, "antigravity platform not available")
 }
 
 // buildGeminiAPIKeyRequest builds request for Gemini API Key accounts
@@ -833,7 +792,7 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 
 	baseURL := account.GetCredential("base_url")
 	if baseURL == "" {
-		baseURL = geminicli.AIStudioBaseURL
+		baseURL = "https://aiplatform.google.com"
 	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
@@ -857,40 +816,7 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 
 // buildGeminiOAuthRequest builds request for Gemini OAuth accounts
 func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, account *Account, modelID string, payload []byte) (*http.Request, error) {
-	if s.geminiTokenProvider == nil {
-		return nil, fmt.Errorf("gemini token provider not configured")
-	}
-
-	// Get access token (auto-refreshes if needed)
-	accessToken, err := s.geminiTokenProvider.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
-	projectID := strings.TrimSpace(account.GetCredential("project_id"))
-	if projectID == "" {
-		// AI Studio OAuth mode (no project_id): call generativelanguage API directly with Bearer token.
-		baseURL := account.GetCredential("base_url")
-		if strings.TrimSpace(baseURL) == "" {
-			baseURL = geminicli.AIStudioBaseURL
-		}
-		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
-		if err != nil {
-			return nil, err
-		}
-		fullURL := fmt.Sprintf("%s/v1beta/models/%s:streamGenerateContent?alt=sse", strings.TrimRight(normalizedBaseURL, "/"), modelID)
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(payload))
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+accessToken)
-		return req, nil
-	}
-
-	// Code Assist mode (with project_id)
-	return s.buildCodeAssistRequest(ctx, accessToken, projectID, modelID, payload)
+	return nil, errors.New("gemini platform not available")
 }
 
 // buildCodeAssistRequest builds request for Google Code Assist API (used by Gemini CLI and Antigravity)
@@ -907,7 +833,7 @@ func (s *AccountTestService) buildCodeAssistRequest(ctx context.Context, accessT
 	}
 	wrappedBytes, _ := json.Marshal(wrapped)
 
-	normalizedBaseURL, err := s.validateUpstreamBaseURL(geminicli.GeminiCliBaseURL)
+	normalizedBaseURL, err := s.validateUpstreamBaseURL(geminiCliBaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -920,7 +846,7 @@ func (s *AccountTestService) buildCodeAssistRequest(ctx context.Context, accessT
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+	req.Header.Set("User-Agent", geminiCliUserAgent)
 
 	return req, nil
 }
@@ -928,7 +854,7 @@ func (s *AccountTestService) buildCodeAssistRequest(ctx context.Context, accessT
 // createGeminiTestPayload creates a minimal test payload for Gemini API.
 // Image models use the image-generation path so the frontend can preview the returned image.
 func createGeminiTestPayload(modelID string, prompt string) []byte {
-	if isImageGenerationModel(modelID) {
+	if false { // Gemini platform removed
 		imagePrompt := strings.TrimSpace(prompt)
 		if imagePrompt == "" {
 			imagePrompt = defaultGeminiImageTestPrompt

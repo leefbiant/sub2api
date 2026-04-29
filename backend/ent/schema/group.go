@@ -52,9 +52,10 @@ func (Group) Fields() []ent.Field {
 			Default(domain.StatusActive),
 
 		// Subscription-related fields (added by migration 003)
+		// Platform field default changed to OpenAI after removing Anthropic/Gemini/Antigravity
 		field.String("platform").
 			MaxLen(50).
-			Default(domain.PlatformAnthropic),
+			Default(domain.PlatformOpenAI),
 		field.String("subscription_type").
 			MaxLen(20).
 			Default(domain.SubscriptionTypeStandard),

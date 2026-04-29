@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -18,6 +19,18 @@ const (
 // AnthropicSessionTTL 返回 Anthropic 会话缓存 TTL
 func AnthropicSessionTTL() time.Duration {
 	return anthropicSessionTTLSeconds * time.Second
+}
+
+// shortHash returns a short hash of the input data for use in session keys.
+func shortHash(data []byte) string {
+	h := 0
+	for _, b := range data {
+		h = h*31 + int(b)
+	}
+	if h < 0 {
+		h = -h
+	}
+	return fmt.Sprintf("%x", h)[:8]
 }
 
 // BuildAnthropicDigestChain 根据 Anthropic 请求生成摘要链

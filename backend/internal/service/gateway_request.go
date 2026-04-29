@@ -10,11 +10,13 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/Wei-Shaw/sub2api/internal/domain"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// dummyThoughtSignature is a placeholder for disabled signature verification.
+// Kept as local constant since the antigravity package was removed.
+const dummyThoughtSignature = "disabled"
 
 var (
 	// 这些字节模式用于 fast-path 判断，避免每次 []byte("...") 产生临时分配。
@@ -127,7 +129,7 @@ func normalizeSessionUserAgentFallback(raw string) string {
 }
 
 // ParseGatewayRequest 解析网关请求体并返回结构化结果。
-// protocol 指定请求协议格式（domain.PlatformAnthropic / domain.PlatformGemini），
+// protocol 指定请求协议格式（domain.PlatformAnthropic / "gemini"），
 // 不同协议使用不同的 system/messages 字段名。
 func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	// 保持与旧实现一致：请求体必须是合法 JSON。
@@ -192,23 +194,22 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	// 使用 gjson 抽取目标字段的 Raw，再对该子树进行 Unmarshal。
 
 	switch protocol {
-	case domain.PlatformGemini:
-		// Gemini 原生格式: systemInstruction.parts / contents
-		if sysParts := gjson.Get(jsonStr, "systemInstruction.parts"); sysParts.Exists() && sysParts.IsArray() {
-			var parts []any
-			if err := json.Unmarshal(sliceRawFromBody(body, sysParts), &parts); err != nil {
-				return nil, err
-			}
-			parsed.System = parts
-		}
-
-		if contents := gjson.Get(jsonStr, "contents"); contents.Exists() && contents.IsArray() {
-			var msgs []any
-			if err := json.Unmarshal(sliceRawFromBody(body, contents), &msgs); err != nil {
-				return nil, err
-			}
-			parsed.Messages = msgs
-		}
+	// case "gemini":
+	// 	// Gemini 原生格式: systemInstruction.parts / contents
+	// 	if sysParts := gjson.Get(jsonStr, "systemInstruction.parts"); sysParts.Exists() && sysParts.IsArray() {
+	// 		var parts []any
+	// 		if err := json.Unmarshal(sliceRawFromBody(body, sysParts), &parts); err != nil {
+	// 			return nil, err
+	// 		}
+	// 		parsed.System = parts
+	// 	}
+	// 	if contents := gjson.Get(jsonStr, "contents"); contents.Exists() && contents.IsArray() {
+	// 		var msgs []any
+	// 		if err := json.Unmarshal(sliceRawFromBody(body, contents), &msgs); err != nil {
+	// 			return nil, err
+	// 		}
+	// 		parsed.Messages = msgs
+	// 	}
 	default:
 		// Anthropic / OpenAI 格式: system / messages
 		// system 字段只要存在就视为显式提供（即使为 null），
@@ -916,7 +917,7 @@ func filterThinkingBlocksInternal(body []byte, _ bool) []byte {
 				// only keep thinking blocks with valid signatures
 				if thinkingEnabled && role == "assistant" {
 					signature, _ := blockMap["signature"].(string)
-					if signature != "" && signature != antigravity.DummyThoughtSignature {
+					if signature != "" && signature != dummyThoughtSignature {
 						newContent = append(newContent, block)
 						continue
 					}

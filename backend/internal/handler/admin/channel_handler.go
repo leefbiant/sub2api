@@ -206,7 +206,7 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 	}
 	platform := p.Platform
 	if platform == "" {
-		platform = service.PlatformAnthropic
+		platform = "anthropic"
 	}
 	intervals := make([]pricingIntervalResponse, 0, len(p.Intervals))
 	for _, iv := range p.Intervals {
@@ -350,7 +350,7 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 	// Main model_pricing requires a platform; default to anthropic for backward compatibility.
 	for i := range pricing {
 		if pricing[i].Platform == "" {
-			pricing[i].Platform = service.PlatformAnthropic
+			pricing[i].Platform = "anthropic"
 		}
 	}
 
@@ -423,7 +423,7 @@ func (h *ChannelHandler) Update(c *gin.Context) {
 		pricing := pricingRequestToService(*req.ModelPricing)
 		for i := range pricing {
 			if pricing[i].Platform == "" {
-				pricing[i].Platform = service.PlatformAnthropic
+				pricing[i].Platform = "anthropic"
 			}
 		}
 		input.ModelPricing = &pricing

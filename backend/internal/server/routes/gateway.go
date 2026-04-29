@@ -29,7 +29,7 @@ func RegisterGatewayRoutes(
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
 	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
-	requireGroupGoogle := middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter)
+	_ = middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter) // [REMOVED_PLATFORM] was requireGroupGoogle
 
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
@@ -114,20 +114,19 @@ func RegisterGatewayRoutes(
 		})
 	}
 
-	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
-	gemini := r.Group("/v1beta")
-	gemini.Use(bodyLimit)
-	gemini.Use(clientRequestID)
-	gemini.Use(opsErrorLogger)
-	gemini.Use(endpointNorm)
-	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
-	gemini.Use(requireGroupGoogle)
-	{
-		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
-		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
-		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
-		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
-	}
+	// ❌ REMOVED: Gemini 兼容路由
+	// gemini := r.Group("/v1beta")
+	// gemini.Use(bodyLimit)
+	// gemini.Use(clientRequestID)
+	// gemini.Use(opsErrorLogger)
+	// gemini.Use(endpointNorm)
+	// gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	// gemini.Use(_requireGroupGoogle)
+	// {
+	// 	gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
+	// 	gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
+	// 	gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+	// }
 
 	// OpenAI Responses API（不带v1前缀的别名）— auto-route based on group platform
 	responsesHandler := func(c *gin.Context) {
@@ -180,38 +179,39 @@ func RegisterGatewayRoutes(
 		h.OpenAIGateway.Images(c)
 	})
 
-	// Antigravity 模型列表
-	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
+	// ❌ REMOVED: Antigravity 模型列表
+	// r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
 
-	// Antigravity 专用路由（仅使用 antigravity 账户，不混合调度）
-	antigravityV1 := r.Group("/antigravity/v1")
-	antigravityV1.Use(bodyLimit)
-	antigravityV1.Use(clientRequestID)
-	antigravityV1.Use(opsErrorLogger)
-	antigravityV1.Use(endpointNorm)
-	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
-	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
-	antigravityV1.Use(requireGroupAnthropic)
-	{
-		antigravityV1.POST("/messages", h.Gateway.Messages)
-		antigravityV1.POST("/messages/count_tokens", h.Gateway.CountTokens)
-		antigravityV1.GET("/models", h.Gateway.AntigravityModels)
-		antigravityV1.GET("/usage", h.Gateway.Usage)
-	}
+	// ❌ REMOVED: Antigravity 专用路由
+	// antigravityV1 := r.Group("/antigravity/v1")
+	// antigravityV1.Use(bodyLimit)
+	// antigravityV1.Use(clientRequestID)
+	// antigravityV1.Use(opsErrorLogger)
+	// antigravityV1.Use(endpointNorm)
+	// antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
+	// antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
+	// antigravityV1.Use(requireGroupAnthropic)
+	// {
+	// 	antigravityV1.POST("/messages", h.Gateway.Messages)
+	// 	antigravityV1.POST("/messages/count_tokens", h.Gateway.CountTokens)
+	// 	antigravityV1.GET("/models", h.Gateway.AntigravityModels)
+	// 	antigravityV1.GET("/usage", h.Gateway.Usage)
+	// }
 
-	antigravityV1Beta := r.Group("/antigravity/v1beta")
-	antigravityV1Beta.Use(bodyLimit)
-	antigravityV1Beta.Use(clientRequestID)
-	antigravityV1Beta.Use(opsErrorLogger)
-	antigravityV1Beta.Use(endpointNorm)
-	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
-	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
-	antigravityV1Beta.Use(requireGroupGoogle)
-	{
-		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
-		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
-		antigravityV1Beta.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
-	}
+	// ❌ REMOVED: Antigravity v1beta 路由
+	// antigravityV1Beta := r.Group("/antigravity/v1beta")
+	// antigravityV1Beta.Use(bodyLimit)
+	// antigravityV1Beta.Use(clientRequestID)
+	// antigravityV1Beta.Use(opsErrorLogger)
+	// antigravityV1Beta.Use(endpointNorm)
+	// antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
+	// antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	// antigravityV1Beta.Use(_requireGroupGoogle)
+	// {
+	// 	antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
+	// 	antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
+	// 	antigravityV1Beta.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+	// }
 
 }
 

@@ -51,8 +51,6 @@ type OpsService struct {
 	concurrencyService        *ConcurrencyService
 	gatewayService            *GatewayService
 	openAIGatewayService      *OpenAIGatewayService
-	geminiCompatService       *GeminiMessagesCompatService
-	antigravityGatewayService *AntigravityGatewayService
 	systemLogSink             *OpsSystemLogSink
 }
 
@@ -65,8 +63,7 @@ func NewOpsService(
 	concurrencyService *ConcurrencyService,
 	gatewayService *GatewayService,
 	openAIGatewayService *OpenAIGatewayService,
-	geminiCompatService *GeminiMessagesCompatService,
-	antigravityGatewayService *AntigravityGatewayService,
+
 	systemLogSink *OpsSystemLogSink,
 ) *OpsService {
 	svc := &OpsService{
@@ -80,8 +77,6 @@ func NewOpsService(
 		concurrencyService:        concurrencyService,
 		gatewayService:            gatewayService,
 		openAIGatewayService:      openAIGatewayService,
-		geminiCompatService:       geminiCompatService,
-		antigravityGatewayService: antigravityGatewayService,
 		systemLogSink:             systemLogSink,
 	}
 	svc.applyRuntimeLogConfigOnStartup(context.Background())

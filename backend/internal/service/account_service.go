@@ -180,7 +180,8 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 			if err != nil {
 				return nil, err
 			}
-			if g.RequireOAuthOnly && (g.Platform == PlatformOpenAI || g.Platform == PlatformAntigravity || g.Platform == PlatformAnthropic || g.Platform == PlatformGemini) {
+			// ❌ REMOVED: Antigravity, Anthropic, Gemini platforms from RequireOAuthOnly check (only OpenAI remains)
+			if g.RequireOAuthOnly && g.Platform == PlatformOpenAI {
 				return nil, fmt.Errorf("分组 [%s] 仅允许 OAuth 账号，apikey 类型账号无法加入", g.Name)
 			}
 		}
@@ -296,7 +297,8 @@ func (s *AccountService) Update(ctx context.Context, id int64, req UpdateAccount
 			if err != nil {
 				return nil, err
 			}
-			if g.RequireOAuthOnly && (g.Platform == PlatformOpenAI || g.Platform == PlatformAntigravity || g.Platform == PlatformAnthropic || g.Platform == PlatformGemini) {
+			// ❌ REMOVED: Antigravity, Anthropic, Gemini platforms from RequireOAuthOnly check (only OpenAI remains)
+			if g.RequireOAuthOnly && g.Platform == PlatformOpenAI {
 				return nil, fmt.Errorf("分组 [%s] 仅允许 OAuth 账号，apikey 类型账号无法加入", g.Name)
 			}
 		}
@@ -408,16 +410,12 @@ func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 		return fmt.Errorf("get account: %w", err)
 	}
 
-	// 根据平台执行不同的测试逻辑
+	// ❌ REMOVED: Antigravity, Anthropic, Gemini platforms from TestAccountCredentials
 	switch account.Platform {
-	case PlatformAnthropic:
-		// TODO: 测试Anthropic API凭证
-		return nil
+	// case "anthropic":
+	// case "gemini":
 	case PlatformOpenAI:
 		// TODO: 测试OpenAI API凭证
-		return nil
-	case PlatformGemini:
-		// TODO: 测试Gemini API凭证
 		return nil
 	default:
 		return fmt.Errorf("unsupported platform: %s", account.Platform)

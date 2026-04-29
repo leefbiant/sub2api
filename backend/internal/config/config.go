@@ -86,7 +86,11 @@ type Config struct {
 	TokenRefresh            TokenRefreshConfig            `mapstructure:"token_refresh"`
 	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone                string                        `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
-	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
+	// ❌ REMOVED: Gemini, GeminiConfig (lines 126-146) — Gemini 平台已删除
+	// type GeminiConfig struct { ... }
+	// type GeminiOAuthConfig struct { ... }
+	// type GeminiQuotaConfig struct { ... }
+	// type GeminiTierQuotaConfig struct { ... }
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 }
@@ -586,8 +590,7 @@ type GatewayConfig struct {
 	UpstreamResponseReadMaxBytes int64 `mapstructure:"upstream_response_read_max_bytes"`
 	// 代理探测响应体读取上限（字节）
 	ProxyProbeResponseReadMaxBytes int64 `mapstructure:"proxy_probe_response_read_max_bytes"`
-	// Gemini 上游响应头调试日志开关（默认关闭，避免高频日志开销）
-	GeminiDebugResponseHeaders bool `mapstructure:"gemini_debug_response_headers"`
+	// ❌ REMOVED: GeminiDebugResponseHeaders (gemini 平台已删除)
 	// ConnectionPoolIsolation: 上游连接池隔离策略（proxy/account/account_proxy）
 	ConnectionPoolIsolation string `mapstructure:"connection_pool_isolation"`
 	// ForceCodexCLI: 强制将 OpenAI `/v1/responses` 请求按 Codex CLI 处理。
@@ -651,11 +654,9 @@ type GatewayConfig struct {
 
 	// 账户切换最大次数（遇到上游错误时切换到其他账户的次数上限）
 	MaxAccountSwitches int `mapstructure:"max_account_switches"`
-	// Gemini 账户切换最大次数（Gemini 平台单独配置，因 API 限制更严格）
-	MaxAccountSwitchesGemini int `mapstructure:"max_account_switches_gemini"`
-
-	// Antigravity 429 fallback 限流时间（分钟），解析重置时间失败时使用
-	AntigravityFallbackCooldownMinutes int `mapstructure:"antigravity_fallback_cooldown_minutes"`
+	// ❌ REMOVED: MaxAccountSwitchesGemini (gemini 平台已删除)
+	// ❌ REMOVED: AntigravityFallbackCooldownMinutes (antigravity 平台已删除)
+	// 下一行是 MaxAccountSwitchesPerModel:
 
 	// Scheduling: 账号调度相关配置
 	Scheduling GatewaySchedulingConfig `mapstructure:"scheduling"`
@@ -1623,7 +1624,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.inject_beta_for_apikey", false)
 	viper.SetDefault("gateway.failover_on_400", false)
 	viper.SetDefault("gateway.max_account_switches", 10)
-	viper.SetDefault("gateway.max_account_switches_gemini", 3)
+	// ❌ REMOVED: gateway.max_account_switches_gemini (gemini 平台已删除)
 	viper.SetDefault("gateway.force_codex_cli", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
 	// OpenAI Responses WebSocket（默认开启；可通过 force_http 紧急回滚）
@@ -1672,12 +1673,11 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.scheduler_score_weights.queue", 0.7)
 	viper.SetDefault("gateway.openai_ws.scheduler_score_weights.error_rate", 0.8)
 	viper.SetDefault("gateway.openai_ws.scheduler_score_weights.ttft", 0.5)
-	viper.SetDefault("gateway.antigravity_fallback_cooldown_minutes", 1)
-	viper.SetDefault("gateway.antigravity_extra_retries", 10)
+	// ❌ REMOVED: antigravity_fallback_cooldown_minutes, antigravity_extra_retries
 	viper.SetDefault("gateway.max_body_size", int64(256*1024*1024))
 	viper.SetDefault("gateway.upstream_response_read_max_bytes", DefaultUpstreamResponseReadMaxBytes)
 	viper.SetDefault("gateway.proxy_probe_response_read_max_bytes", int64(1024*1024))
-	viper.SetDefault("gateway.gemini_debug_response_headers", false)
+	// ❌ REMOVED: gateway.gemini_debug_response_headers (gemini 平台已删除)
 	viper.SetDefault("gateway.connection_pool_isolation", ConnectionPoolIsolationAccountProxy)
 	// HTTP 上游连接池配置（针对 5000+ 并发用户优化）
 	viper.SetDefault("gateway.max_idle_conns", 2560)          // 最大空闲连接总数（高并发场景可调大）
@@ -1743,13 +1743,7 @@ func setDefaults() {
 	viper.SetDefault("token_refresh.max_retries", 3)                   // 最多重试3次
 	viper.SetDefault("token_refresh.retry_backoff_seconds", 2)         // 重试退避基础2秒
 
-	// Gemini OAuth - configure via environment variables or config file
-	// GEMINI_OAUTH_CLIENT_ID and GEMINI_OAUTH_CLIENT_SECRET
-	// Default: uses Gemini CLI public credentials (set via environment)
-	viper.SetDefault("gemini.oauth.client_id", "")
-	viper.SetDefault("gemini.oauth.client_secret", "")
-	viper.SetDefault("gemini.oauth.scopes", "")
-	viper.SetDefault("gemini.quota.policy", "")
+	// ❌ REMOVED: Gemini OAuth / quota viper defaults (gemini 平台已删除)
 
 	// Subscription Maintenance (bounded queue + worker pool)
 	viper.SetDefault("subscription_maintenance.worker_count", 2)
@@ -1823,13 +1817,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("subscription_maintenance.queue_size must be non-negative")
 	}
 
-	// Gemini OAuth 配置校验：client_id 与 client_secret 必须同时设置或同时留空。
-	// 留空时表示使用内置的 Gemini CLI OAuth 客户端（其 client_secret 通过环境变量注入）。
-	geminiClientID := strings.TrimSpace(c.Gemini.OAuth.ClientID)
-	geminiClientSecret := strings.TrimSpace(c.Gemini.OAuth.ClientSecret)
-	if (geminiClientID == "") != (geminiClientSecret == "") {
-		return fmt.Errorf("gemini.oauth.client_id and gemini.oauth.client_secret must be both set or both empty")
-	}
+	// ❌ REMOVED: Gemini OAuth validation (lines 1826-1832) — Gemini 平台已删除
 
 	if strings.TrimSpace(c.Server.FrontendURL) != "" {
 		if err := ValidateAbsoluteHTTPURL(c.Server.FrontendURL); err != nil {

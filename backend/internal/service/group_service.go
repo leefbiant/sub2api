@@ -89,7 +89,7 @@ func (s *GroupService) Create(ctx context.Context, req CreateGroupRequest) (*Gro
 	group := &Group{
 		Name:             req.Name,
 		Description:      req.Description,
-		Platform:         PlatformAnthropic,
+		Platform:         "anthropic",
 		RateMultiplier:   req.RateMultiplier,
 		IsExclusive:      req.IsExclusive,
 		Status:           StatusActive,

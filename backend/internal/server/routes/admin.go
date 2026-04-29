@@ -35,11 +35,11 @@ func RegisterAdminRoutes(
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)
 
-		// Gemini OAuth
-		registerGeminiOAuthRoutes(admin, h)
+		// ❌ REMOVED: Gemini OAuth
+		// registerGeminiOAuthRoutes(admin, h)
 
-		// Antigravity OAuth
-		registerAntigravityOAuthRoutes(admin, h)
+		// ❌ REMOVED: Antigravity OAuth
+		// registerAntigravityOAuthRoutes(admin, h)
 
 		// 代理管理
 		registerProxyRoutes(admin, h)
@@ -288,13 +288,12 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.GET("/data", h.Admin.Account.ExportData)
 		accounts.POST("/data", h.Admin.Account.ImportData)
 		accounts.POST("/batch-update-credentials", h.Admin.Account.BatchUpdateCredentials)
-		accounts.POST("/batch-refresh-tier", h.Admin.Account.BatchRefreshTier)
 		accounts.POST("/bulk-update", h.Admin.Account.BulkUpdate)
 		accounts.POST("/batch-clear-error", h.Admin.Account.BatchClearError)
 		accounts.POST("/batch-refresh", h.Admin.Account.BatchRefresh)
 
-		// Antigravity 默认模型映射
-		accounts.GET("/antigravity/default-model-mapping", h.Admin.Account.GetAntigravityDefaultModelMapping)
+		// ❌ REMOVED: Antigravity 默认模型映射
+		// accounts.GET("/antigravity/default-model-mapping", h.Admin.Account.GetAntigravityDefaultModelMapping)
 
 		// Claude OAuth routes
 		accounts.POST("/generate-auth-url", h.Admin.OAuth.GenerateAuthURL)
@@ -329,23 +328,25 @@ func registerOpenAIOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerGeminiOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	gemini := admin.Group("/gemini")
-	{
-		gemini.POST("/oauth/auth-url", h.Admin.GeminiOAuth.GenerateAuthURL)
-		gemini.POST("/oauth/exchange-code", h.Admin.GeminiOAuth.ExchangeCode)
-		gemini.GET("/oauth/capabilities", h.Admin.GeminiOAuth.GetCapabilities)
-	}
-}
+// ❌ REMOVED: Gemini OAuth 路由注册
+// func registerGeminiOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+// 	gemini := admin.Group("/gemini")
+// 	{
+// 		gemini.POST("/oauth/auth-url", h.Admin.GeminiOAuth.GenerateAuthURL)
+// 		gemini.POST("/oauth/exchange-code", h.Admin.GeminiOAuth.ExchangeCode)
+// 		gemini.GET("/oauth/capabilities", h.Admin.GeminiOAuth.GetCapabilities)
+// 	}
+// }
 
-func registerAntigravityOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	antigravity := admin.Group("/antigravity")
-	{
-		antigravity.POST("/oauth/auth-url", h.Admin.AntigravityOAuth.GenerateAuthURL)
-		antigravity.POST("/oauth/exchange-code", h.Admin.AntigravityOAuth.ExchangeCode)
-		antigravity.POST("/oauth/refresh-token", h.Admin.AntigravityOAuth.RefreshToken)
-	}
-}
+// ❌ REMOVED: Antigravity OAuth 路由注册
+// func registerAntigravityOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+// 	antigravity := admin.Group("/antigravity")
+// 	{
+// 		antigravity.POST("/oauth/auth-url", h.Admin.AntigravityOAuth.GenerateAuthURL)
+// 		antigravity.POST("/oauth/exchange-code", h.Admin.AntigravityOAuth.ExchangeCode)
+// 		antigravity.POST("/oauth/refresh-token", h.Admin.AntigravityOAuth.RefreshToken)
+// 	}
+// }
 
 func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	proxies := admin.Group("/proxies")

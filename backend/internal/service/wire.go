@@ -40,7 +40,7 @@ func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
 }
 
 // ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default lock TTL.
-func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiTokenCache) *OAuthRefreshAPI {
+func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache TokenCache) *OAuthRefreshAPI {
 	return NewOAuthRefreshAPI(accountRepo, tokenCache)
 }
 
@@ -49,8 +49,6 @@ func ProvideTokenRefreshService(
 	accountRepo AccountRepository,
 	oauthService *OAuthService,
 	openaiOAuthService *OpenAIOAuthService,
-	geminiOAuthService *GeminiOAuthService,
-	antigravityOAuthService *AntigravityOAuthService,
 	cacheInvalidator TokenCacheInvalidator,
 	schedulerCache SchedulerCache,
 	cfg *config.Config,
@@ -59,7 +57,7 @@ func ProvideTokenRefreshService(
 	proxyRepo ProxyRepository,
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
-	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache)
+	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache)
 	// 注入 OpenAI privacy opt-out 依赖
 	svc.SetPrivacyDeps(privacyClientFactory, proxyRepo)
 	// 注入统一 OAuth 刷新 API（消除 TokenRefreshService 与 TokenProvider 之间的竞争条件）
@@ -73,7 +71,7 @@ func ProvideTokenRefreshService(
 // ProvideClaudeTokenProvider creates ClaudeTokenProvider with OAuthRefreshAPI injection
 func ProvideClaudeTokenProvider(
 	accountRepo AccountRepository,
-	tokenCache GeminiTokenCache,
+	tokenCache TokenCache,
 	oauthService *OAuthService,
 	refreshAPI *OAuthRefreshAPI,
 ) *ClaudeTokenProvider {
@@ -87,7 +85,7 @@ func ProvideClaudeTokenProvider(
 // ProvideOpenAITokenProvider creates OpenAITokenProvider with OAuthRefreshAPI injection
 func ProvideOpenAITokenProvider(
 	accountRepo AccountRepository,
-	tokenCache GeminiTokenCache,
+	tokenCache TokenCache,
 	openaiOAuthService *OpenAIOAuthService,
 	refreshAPI *OAuthRefreshAPI,
 ) *OpenAITokenProvider {
@@ -98,35 +96,11 @@ func ProvideOpenAITokenProvider(
 	return p
 }
 
-// ProvideGeminiTokenProvider creates GeminiTokenProvider with OAuthRefreshAPI injection
-func ProvideGeminiTokenProvider(
-	accountRepo AccountRepository,
-	tokenCache GeminiTokenCache,
-	geminiOAuthService *GeminiOAuthService,
-	refreshAPI *OAuthRefreshAPI,
-) *GeminiTokenProvider {
-	p := NewGeminiTokenProvider(accountRepo, tokenCache, geminiOAuthService)
-	executor := NewGeminiTokenRefresher(geminiOAuthService)
-	p.SetRefreshAPI(refreshAPI, executor)
-	p.SetRefreshPolicy(GeminiProviderRefreshPolicy())
-	return p
-}
+// ProvideGeminiTokenProvider REMOVED (Gemini platform removed)
+// GeminiTokenProvider no longer available
 
-// ProvideAntigravityTokenProvider creates AntigravityTokenProvider with OAuthRefreshAPI injection
-func ProvideAntigravityTokenProvider(
-	accountRepo AccountRepository,
-	tokenCache GeminiTokenCache,
-	antigravityOAuthService *AntigravityOAuthService,
-	refreshAPI *OAuthRefreshAPI,
-	tempUnschedCache TempUnschedCache,
-) *AntigravityTokenProvider {
-	p := NewAntigravityTokenProvider(accountRepo, tokenCache, antigravityOAuthService)
-	executor := NewAntigravityTokenRefresher(antigravityOAuthService)
-	p.SetRefreshAPI(refreshAPI, executor)
-	p.SetRefreshPolicy(AntigravityProviderRefreshPolicy())
-	p.SetTempUnschedCache(tempUnschedCache)
-	return p
-}
+// ProvideAntigravityTokenProvider REMOVED (Antigravity platform removed)
+// AntigravityTokenProvider no longer available
 
 // ProvideDashboardAggregationService 创建并启动仪表盘聚合服务
 func ProvideDashboardAggregationService(repo DashboardAggregationRepository, timingWheel *TimingWheelService, cfg *config.Config) *DashboardAggregationService {
@@ -212,14 +186,13 @@ func ProvideRateLimitService(
 	accountRepo AccountRepository,
 	usageRepo UsageLogRepository,
 	cfg *config.Config,
-	geminiQuotaService *GeminiQuotaService,
 	tempUnschedCache TempUnschedCache,
 	timeoutCounterCache TimeoutCounterCache,
 	openAI403CounterCache OpenAI403CounterCache,
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
 ) *RateLimitService {
-	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
+	svc := NewRateLimitService(accountRepo, usageRepo, cfg, tempUnschedCache)
 	svc.SetTimeoutCounterCache(timeoutCounterCache)
 	svc.SetOpenAI403CounterCache(openAI403CounterCache)
 	svc.SetSettingService(settingService)
@@ -427,18 +400,11 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	NewOAuthService,
 	NewOpenAIOAuthService,
-	NewGeminiOAuthService,
-	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
-	NewAntigravityOAuthService,
 	ProvideOAuthRefreshAPI,
-	ProvideGeminiTokenProvider,
-	NewGeminiMessagesCompatService,
-	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,
-	NewAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
@@ -471,7 +437,6 @@ var ProviderSet = wire.NewSet(
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,
 	ProvideDeferredService,
-	NewAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
 	NewTotpService,

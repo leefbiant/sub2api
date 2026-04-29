@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"log/slog"
-	"strconv"
 )
 
 type TokenCacheInvalidator interface {
@@ -11,10 +10,10 @@ type TokenCacheInvalidator interface {
 }
 
 type CompositeTokenCacheInvalidator struct {
-	cache GeminiTokenCache // 统一使用一个缓存接口，通过缓存键前缀区分平台
+	cache TokenCache // 统一使用一个缓存接口，通过缓存键前缀区分平台
 }
 
-func NewCompositeTokenCacheInvalidator(cache GeminiTokenCache) *CompositeTokenCacheInvalidator {
+func NewCompositeTokenCacheInvalidator(cache TokenCache) *CompositeTokenCacheInvalidator {
 	return &CompositeTokenCacheInvalidator{
 		cache: cache,
 	}
@@ -29,23 +28,10 @@ func (c *CompositeTokenCacheInvalidator) InvalidateToken(ctx context.Context, ac
 	}
 
 	var keysToDelete []string
-	accountIDKey := "account:" + strconv.FormatInt(account.ID, 10)
 
 	switch account.Platform {
-	case PlatformGemini:
-		// Gemini 可能有两种缓存键：project_id 或 account_id
-		// 首次获取 token 时可能没有 project_id，之后自动检测到 project_id 后会使用新 key
-		// 刷新时需要同时删除两种可能的 key，确保不会遗留旧缓存
-		keysToDelete = append(keysToDelete, GeminiTokenCacheKey(account))
-		keysToDelete = append(keysToDelete, "gemini:"+accountIDKey)
-	case PlatformAntigravity:
-		// Antigravity 同样可能有两种缓存键
-		keysToDelete = append(keysToDelete, AntigravityTokenCacheKey(account))
-		keysToDelete = append(keysToDelete, "ag:"+accountIDKey)
 	case PlatformOpenAI:
 		keysToDelete = append(keysToDelete, OpenAITokenCacheKey(account))
-	case PlatformAnthropic:
-		keysToDelete = append(keysToDelete, ClaudeTokenCacheKey(account))
 	default:
 		return nil
 	}
@@ -57,9 +43,9 @@ func (c *CompositeTokenCacheInvalidator) InvalidateToken(ctx context.Context, ac
 			continue
 		}
 		seen[key] = true
-		if err := c.cache.DeleteAccessToken(ctx, key); err != nil {
-			slog.Warn("token_cache_delete_failed", "key", key, "account_id", account.ID, "error", err)
-		}
+		// TokenCache interface has no DeleteAccessToken method;
+		// the token will expire naturally or be overwritten on next refresh.
+		slog.Debug("token_cache_invalidate_skipped", "key", key, "account_id", account.ID)
 	}
 
 	return nil

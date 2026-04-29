@@ -33,10 +33,10 @@ const (
 
 // Platform constants
 const (
-	PlatformAnthropic   = domain.PlatformAnthropic
-	PlatformOpenAI      = domain.PlatformOpenAI
-	PlatformGemini      = domain.PlatformGemini
-	PlatformAntigravity = domain.PlatformAntigravity
+	PlatformAnthropic = domain.PlatformAnthropic
+	PlatformOpenAI     = domain.PlatformOpenAI
+	// "gemini"      = domain."gemini"      // ❌ REMOVED
+	// "antigravity" = domain."antigravity" // ❌ REMOVED
 )
 
 // Account type constants

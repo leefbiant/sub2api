@@ -97,17 +97,10 @@ type windowStatsCache struct {
 	timestamp time.Time
 }
 
-// antigravityUsageCache 缓存 Antigravity 额度数据
-type antigravityUsageCache struct {
-	usageInfo *UsageInfo
-	timestamp time.Time
-}
-
 const (
 	apiCacheTTL             = 3 * time.Minute
-	apiErrorCacheTTL        = 1 * time.Minute        // 负缓存 TTL：429 等错误缓存 1 分钟
-	antigravityErrorTTL     = 1 * time.Minute        // Antigravity 错误缓存 TTL（可恢复错误）
-	apiQueryMaxJitter       = 800 * time.Millisecond // 用量查询最大随机延迟
+	apiErrorCacheTTL  = 1 * time.Minute        // 负缓存 TTL：429 等错误缓存 1 分钟
+	apiQueryMaxJitter = 800 * time.Millisecond // 用量查询最大随机延迟
 	windowStatsCacheTTL     = 1 * time.Minute
 	openAIProbeCacheTTL     = 10 * time.Minute
 	openAICodexProbeVersion = "0.125.0"
@@ -115,12 +108,10 @@ const (
 
 // UsageCache 封装账户使用量相关的缓存
 type UsageCache struct {
-	apiCache          sync.Map           // accountID -> *apiUsageCache
-	windowStatsCache  sync.Map           // accountID -> *windowStatsCache
-	antigravityCache  sync.Map           // accountID -> *antigravityUsageCache
-	apiFlight         singleflight.Group // 防止同一账号的并发请求击穿缓存（Anthropic）
-	antigravityFlight singleflight.Group // 防止同一 Antigravity 账号的并发请求击穿缓存
-	openAIProbeCache  sync.Map           // accountID -> time.Time
+	apiCache         sync.Map           // accountID -> *apiUsageCache
+	windowStatsCache sync.Map           // accountID -> *windowStatsCache
+	apiFlight        singleflight.Group // 防止同一账号的并发请求击穿缓存（Anthropic）
+	openAIProbeCache sync.Map           // accountID -> time.Time
 }
 
 // NewUsageCache 创建 UsageCache 实例
@@ -261,8 +252,6 @@ type AccountUsageService struct {
 	accountRepo             AccountRepository
 	usageLogRepo            UsageLogRepository
 	usageFetcher            ClaudeUsageFetcher
-	geminiQuotaService      *GeminiQuotaService
-	antigravityQuotaFetcher *AntigravityQuotaFetcher
 	cache                   *UsageCache
 	identityCache           IdentityCache
 	tlsFPProfileService     *TLSFingerprintProfileService
@@ -273,21 +262,17 @@ func NewAccountUsageService(
 	accountRepo AccountRepository,
 	usageLogRepo UsageLogRepository,
 	usageFetcher ClaudeUsageFetcher,
-	geminiQuotaService *GeminiQuotaService,
-	antigravityQuotaFetcher *AntigravityQuotaFetcher,
 	cache *UsageCache,
 	identityCache IdentityCache,
 	tlsFPProfileService *TLSFingerprintProfileService,
 ) *AccountUsageService {
 	return &AccountUsageService{
-		accountRepo:             accountRepo,
-		usageLogRepo:            usageLogRepo,
-		usageFetcher:            usageFetcher,
-		geminiQuotaService:      geminiQuotaService,
-		antigravityQuotaFetcher: antigravityQuotaFetcher,
-		cache:                   cache,
-		identityCache:           identityCache,
-		tlsFPProfileService:     tlsFPProfileService,
+		accountRepo:         accountRepo,
+		usageLogRepo:        usageLogRepo,
+		usageFetcher:        usageFetcher,
+		cache:               cache,
+		identityCache:       identityCache,
+		tlsFPProfileService: tlsFPProfileService,
 	}
 }
 
@@ -309,22 +294,23 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64) (*U
 		return usage, err
 	}
 
-	if account.Platform == PlatformGemini {
-		usage, err := s.getGeminiUsage(ctx, account)
-		if err == nil {
-			s.tryClearRecoverableAccountError(ctx, account)
-		}
-		return usage, err
-	}
+	// ❌ REMOVED: Gemini and Antigravity usage fetching (only OpenAI remains)
+	// if account.Platform == "gemini" {
+	// 	usage, err := s.getGeminiUsage(ctx, account)
+	// 	if err == nil {
+	// 		s.tryClearRecoverableAccountError(ctx, account)
+	// 	}
+	// 	return usage, err
+	// }
 
-	// Antigravity 平台：使用 AntigravityQuotaFetcher 获取额度
-	if account.Platform == PlatformAntigravity {
-		usage, err := s.getAntigravityUsage(ctx, account)
-		if err == nil {
-			s.tryClearRecoverableAccountError(ctx, account)
-		}
-		return usage, err
-	}
+	// ❌ REMOVED: Antigravity usage fetching
+	// if account.Platform == "antigravity" {
+	// 	usage, err := s.getAntigravityUsage(ctx, account)
+	// 	if err == nil {
+	// 		s.tryClearRecoverableAccountError(ctx, account)
+	// 	}
+	// 	return usage, err
+	// }
 
 	// 只有oauth类型账号可以通过API获取usage（有profile scope）
 	if account.CanGetUsage() {
@@ -695,223 +681,6 @@ func mergeAccountExtra(account *Account, updates map[string]any) {
 	for k, v := range updates {
 		account.Extra[k] = v
 	}
-}
-
-func (s *AccountUsageService) getGeminiUsage(ctx context.Context, account *Account) (*UsageInfo, error) {
-	now := time.Now()
-	usage := &UsageInfo{
-		UpdatedAt: &now,
-	}
-
-	if s.geminiQuotaService == nil || s.usageLogRepo == nil {
-		return usage, nil
-	}
-
-	quota, ok := s.geminiQuotaService.QuotaForAccount(ctx, account)
-	if !ok {
-		return usage, nil
-	}
-
-	dayStart := geminiDailyWindowStart(now)
-	stats, err := s.usageLogRepo.GetModelStatsWithFilters(ctx, dayStart, now, 0, 0, account.ID, 0, nil, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get gemini usage stats failed: %w", err)
-	}
-
-	dayTotals := geminiAggregateUsage(stats)
-	dailyResetAt := geminiDailyResetTime(now)
-
-	// Daily window (RPD)
-	if quota.SharedRPD > 0 {
-		totalReq := dayTotals.ProRequests + dayTotals.FlashRequests
-		totalTokens := dayTotals.ProTokens + dayTotals.FlashTokens
-		totalCost := dayTotals.ProCost + dayTotals.FlashCost
-		usage.GeminiSharedDaily = buildGeminiUsageProgress(totalReq, quota.SharedRPD, dailyResetAt, totalTokens, totalCost, now)
-	} else {
-		usage.GeminiProDaily = buildGeminiUsageProgress(dayTotals.ProRequests, quota.ProRPD, dailyResetAt, dayTotals.ProTokens, dayTotals.ProCost, now)
-		usage.GeminiFlashDaily = buildGeminiUsageProgress(dayTotals.FlashRequests, quota.FlashRPD, dailyResetAt, dayTotals.FlashTokens, dayTotals.FlashCost, now)
-	}
-
-	// Minute window (RPM) - fixed-window approximation: current minute [truncate(now), truncate(now)+1m)
-	minuteStart := now.Truncate(time.Minute)
-	minuteResetAt := minuteStart.Add(time.Minute)
-	minuteStats, err := s.usageLogRepo.GetModelStatsWithFilters(ctx, minuteStart, now, 0, 0, account.ID, 0, nil, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get gemini minute usage stats failed: %w", err)
-	}
-	minuteTotals := geminiAggregateUsage(minuteStats)
-
-	if quota.SharedRPM > 0 {
-		totalReq := minuteTotals.ProRequests + minuteTotals.FlashRequests
-		totalTokens := minuteTotals.ProTokens + minuteTotals.FlashTokens
-		totalCost := minuteTotals.ProCost + minuteTotals.FlashCost
-		usage.GeminiSharedMinute = buildGeminiUsageProgress(totalReq, quota.SharedRPM, minuteResetAt, totalTokens, totalCost, now)
-	} else {
-		usage.GeminiProMinute = buildGeminiUsageProgress(minuteTotals.ProRequests, quota.ProRPM, minuteResetAt, minuteTotals.ProTokens, minuteTotals.ProCost, now)
-		usage.GeminiFlashMinute = buildGeminiUsageProgress(minuteTotals.FlashRequests, quota.FlashRPM, minuteResetAt, minuteTotals.FlashTokens, minuteTotals.FlashCost, now)
-	}
-
-	return usage, nil
-}
-
-// getAntigravityUsage 获取 Antigravity 账户额度
-func (s *AccountUsageService) getAntigravityUsage(ctx context.Context, account *Account) (*UsageInfo, error) {
-	if s.antigravityQuotaFetcher == nil || !s.antigravityQuotaFetcher.CanFetch(account) {
-		now := time.Now()
-		return &UsageInfo{UpdatedAt: &now}, nil
-	}
-
-	// 1. 检查缓存
-	if cached, ok := s.cache.antigravityCache.Load(account.ID); ok {
-		if cache, ok := cached.(*antigravityUsageCache); ok {
-			ttl := antigravityCacheTTL(cache.usageInfo)
-			if time.Since(cache.timestamp) < ttl {
-				usage := cache.usageInfo
-				if usage.FiveHour != nil && usage.FiveHour.ResetsAt != nil {
-					usage.FiveHour.RemainingSeconds = int(time.Until(*usage.FiveHour.ResetsAt).Seconds())
-				}
-				return usage, nil
-			}
-		}
-	}
-
-	// 2. singleflight 防止并发击穿
-	flightKey := fmt.Sprintf("ag-usage:%d", account.ID)
-	result, flightErr, _ := s.cache.antigravityFlight.Do(flightKey, func() (any, error) {
-		// 再次检查缓存（等待期间可能已被填充）
-		if cached, ok := s.cache.antigravityCache.Load(account.ID); ok {
-			if cache, ok := cached.(*antigravityUsageCache); ok {
-				ttl := antigravityCacheTTL(cache.usageInfo)
-				if time.Since(cache.timestamp) < ttl {
-					usage := cache.usageInfo
-					// 重新计算 RemainingSeconds，避免返回过时的剩余秒数
-					recalcAntigravityRemainingSeconds(usage)
-					return usage, nil
-				}
-			}
-		}
-
-		// 使用独立 context，避免调用方 cancel 导致所有共享 flight 的请求失败
-		fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer fetchCancel()
-
-		proxyURL := s.antigravityQuotaFetcher.GetProxyURL(fetchCtx, account)
-		fetchResult, err := s.antigravityQuotaFetcher.FetchQuota(fetchCtx, account, proxyURL)
-		if err != nil {
-			degraded := buildAntigravityDegradedUsage(err)
-			enrichUsageWithAccountError(degraded, account)
-			s.cache.antigravityCache.Store(account.ID, &antigravityUsageCache{
-				usageInfo: degraded,
-				timestamp: time.Now(),
-			})
-			return degraded, nil
-		}
-
-		enrichUsageWithAccountError(fetchResult.UsageInfo, account)
-		s.cache.antigravityCache.Store(account.ID, &antigravityUsageCache{
-			usageInfo: fetchResult.UsageInfo,
-			timestamp: time.Now(),
-		})
-		return fetchResult.UsageInfo, nil
-	})
-
-	if flightErr != nil {
-		return nil, flightErr
-	}
-	usage, ok := result.(*UsageInfo)
-	if !ok || usage == nil {
-		now := time.Now()
-		return &UsageInfo{UpdatedAt: &now}, nil
-	}
-	return usage, nil
-}
-
-// recalcAntigravityRemainingSeconds 重新计算 Antigravity UsageInfo 中各窗口的 RemainingSeconds
-// 用于从缓存取出时更新倒计时，避免返回过时的剩余秒数
-func recalcAntigravityRemainingSeconds(info *UsageInfo) {
-	if info == nil {
-		return
-	}
-	if info.FiveHour != nil && info.FiveHour.ResetsAt != nil {
-		remaining := int(time.Until(*info.FiveHour.ResetsAt).Seconds())
-		if remaining < 0 {
-			remaining = 0
-		}
-		info.FiveHour.RemainingSeconds = remaining
-	}
-}
-
-// antigravityCacheTTL 根据 UsageInfo 内容决定缓存 TTL
-// 403 forbidden 状态稳定，缓存与成功相同（3 分钟）；
-// 其他错误（401/网络）可能快速恢复，缓存 1 分钟。
-func antigravityCacheTTL(info *UsageInfo) time.Duration {
-	if info == nil {
-		return antigravityErrorTTL
-	}
-	if info.IsForbidden {
-		return apiCacheTTL // 封号/验证状态不会很快变
-	}
-	if info.ErrorCode != "" || info.Error != "" {
-		return antigravityErrorTTL
-	}
-	return apiCacheTTL
-}
-
-// buildAntigravityDegradedUsage 从 FetchQuota 错误构建降级 UsageInfo
-func buildAntigravityDegradedUsage(err error) *UsageInfo {
-	now := time.Now()
-	errMsg := fmt.Sprintf("usage API error: %v", err)
-	slog.Warn("antigravity usage fetch failed, returning degraded response", "error", err)
-
-	info := &UsageInfo{
-		UpdatedAt: &now,
-		Error:     errMsg,
-	}
-
-	// 从错误信息推断 error_code 和状态标记
-	// 错误格式来自 antigravity/client.go: "fetchAvailableModels 失败 (HTTP %d): ..."
-	errStr := err.Error()
-	switch {
-	case strings.Contains(errStr, "HTTP 401") ||
-		strings.Contains(errStr, "UNAUTHENTICATED") ||
-		strings.Contains(errStr, "invalid_grant"):
-		info.ErrorCode = errorCodeUnauthenticated
-		info.NeedsReauth = true
-	case strings.Contains(errStr, "HTTP 429"):
-		info.ErrorCode = errorCodeRateLimited
-	default:
-		info.ErrorCode = errorCodeNetworkError
-	}
-
-	return info
-}
-
-// enrichUsageWithAccountError 结合账号错误状态修正 UsageInfo
-// 场景 1（成功路径）：FetchAvailableModels 正常返回，但账号已因 403 被标记为 error，
-//
-//	需要在正常 usage 数据上附加 forbidden/validation 信息。
-//
-// 场景 2（降级路径）：被封号的账号 OAuth token 失效，FetchAvailableModels 返回 401，
-//
-//	降级逻辑设置了 needs_reauth，但账号实际是 403 封号/需验证，需覆盖为正确状态。
-func enrichUsageWithAccountError(info *UsageInfo, account *Account) {
-	if info == nil || account == nil || account.Status != StatusError {
-		return
-	}
-	msg := strings.ToLower(account.ErrorMessage)
-	if !strings.Contains(msg, "403") && !strings.Contains(msg, "forbidden") &&
-		!strings.Contains(msg, "violation") && !strings.Contains(msg, "validation") {
-		return
-	}
-	fbType := classifyForbiddenType(account.ErrorMessage)
-	info.IsForbidden = true
-	info.ForbiddenType = fbType
-	info.ForbiddenReason = account.ErrorMessage
-	info.NeedsVerify = fbType == forbiddenTypeValidation
-	info.IsBanned = fbType == forbiddenTypeViolation
-	info.ValidationURL = extractValidationURL(account.ErrorMessage)
-	info.ErrorCode = errorCodeForbidden
-	info.NeedsReauth = false
 }
 
 // addWindowStats 为 usage 数据添加窗口期统计

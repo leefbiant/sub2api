@@ -1330,7 +1330,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 
 	platform := input.Platform
 	if platform == "" {
-		platform = PlatformAnthropic
+		platform = PlatformOpenAI
 	}
 
 	subscriptionType := input.SubscriptionType
@@ -1436,7 +1436,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	// require_oauth_only: 过滤掉 apikey 类型账号
-	if group.RequireOAuthOnly && (group.Platform == PlatformOpenAI || group.Platform == PlatformAntigravity || group.Platform == PlatformAnthropic || group.Platform == PlatformGemini) && len(accountIDsToCopy) > 0 {
+	if group.RequireOAuthOnly && (group.Platform == PlatformOpenAI) && len(accountIDsToCopy) > 0 {
 		accounts, err := s.accountRepo.GetByIDs(ctx, accountIDsToCopy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch accounts for oauth filter: %w", err)
@@ -1526,29 +1526,7 @@ func (s *adminServiceImpl) validateFallbackGroup(ctx context.Context, currentGro
 // platform/subscriptionType: 当前分组的有效平台/订阅类型
 // fallbackGroupID: 兜底分组 ID
 func (s *adminServiceImpl) validateFallbackGroupOnInvalidRequest(ctx context.Context, currentGroupID int64, platform, subscriptionType string, fallbackGroupID int64) error {
-	if platform != PlatformAnthropic && platform != PlatformAntigravity {
-		return fmt.Errorf("invalid request fallback only supported for anthropic or antigravity groups")
-	}
-	if subscriptionType == SubscriptionTypeSubscription {
-		return fmt.Errorf("subscription groups cannot set invalid request fallback")
-	}
-	if currentGroupID > 0 && currentGroupID == fallbackGroupID {
-		return fmt.Errorf("cannot set self as invalid request fallback group")
-	}
-
-	fallbackGroup, err := s.groupRepo.GetByIDLite(ctx, fallbackGroupID)
-	if err != nil {
-		return fmt.Errorf("fallback group not found: %w", err)
-	}
-	if fallbackGroup.Platform != PlatformAnthropic {
-		return fmt.Errorf("fallback group must be anthropic platform")
-	}
-	if fallbackGroup.SubscriptionType == SubscriptionTypeSubscription {
-		return fmt.Errorf("fallback group cannot be subscription type")
-	}
-	if fallbackGroup.FallbackGroupIDOnInvalidRequest != nil {
-		return fmt.Errorf("fallback group cannot have invalid request fallback configured")
-	}
+	// [裁剪] Antigravity/Anthropic 已移除，OpenAI 不需要此校验
 	return nil
 }
 
@@ -1716,7 +1694,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 
 		// require_oauth_only: 过滤掉 apikey 类型账号
-		if group.RequireOAuthOnly && (group.Platform == PlatformOpenAI || group.Platform == PlatformAntigravity || group.Platform == PlatformAnthropic || group.Platform == PlatformGemini) && len(accountIDsToCopy) > 0 {
+		if group.RequireOAuthOnly && (group.Platform == PlatformOpenAI) && len(accountIDsToCopy) > 0 {
 			accounts, err := s.accountRepo.GetByIDs(ctx, accountIDsToCopy)
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch accounts for oauth filter: %w", err)
@@ -2142,15 +2120,6 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 				}()
 				s.EnsureOpenAIPrivacy(context.Background(), account)
 			}()
-		case PlatformAntigravity:
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						slog.Error("create_account_antigravity_privacy_panic", "account_id", account.ID, "recover", r)
-					}
-				}()
-				s.EnsureAntigravityPrivacy(context.Background(), account)
-			}()
 		}
 	}
 
@@ -2162,7 +2131,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
-	wasOveragesEnabled := account.IsOveragesEnabled()
+	// wasOveragesEnabled := account.IsOveragesEnabled() // [裁剪] Antigravity removed
 
 	if input.Name != "" {
 		account.Name = input.Name
@@ -2186,18 +2155,6 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			}
 		}
 		account.Extra = input.Extra
-		if account.Platform == PlatformAntigravity && wasOveragesEnabled && !account.IsOveragesEnabled() {
-			delete(account.Extra, "antigravity_credits_overages") // 清理旧版 overages 运行态
-			// 清除 AICredits 限流 key
-			if rawLimits, ok := account.Extra[modelRateLimitsKey].(map[string]any); ok {
-				delete(rawLimits, creditsExhaustedKey)
-			}
-		}
-		if account.Platform == PlatformAntigravity && !wasOveragesEnabled && account.IsOveragesEnabled() {
-			delete(account.Extra, modelRateLimitsKey)
-			delete(account.Extra, "antigravity_credits_overages") // 清理旧版 overages 运行态
-		}
-		// 校验并预计算固定时间重置的下次重置时间
 		if err := ValidateQuotaResetConfig(account.Extra); err != nil {
 			return nil, err
 		}
@@ -3172,15 +3129,13 @@ func (s *adminServiceImpl) saveProxyLatency(ctx context.Context, proxyID int64, 
 }
 
 // getAccountPlatform 根据账号 platform 判断混合渠道检查用的平台标识
+// ❌ REMOVED: Gemini/Antigravity/OpenAI 平台已删除，始终返回空字符串
 func getAccountPlatform(accountPlatform string) string {
-	switch strings.ToLower(strings.TrimSpace(accountPlatform)) {
-	case PlatformAntigravity:
-		return "Antigravity"
-	case PlatformAnthropic, "claude":
-		return "Anthropic"
-	default:
-		return ""
-	}
+	_ = strings.ToLower(strings.TrimSpace(accountPlatform)) // 保留引用避免未使用导入（所有 case 均已注释）
+	// 所有平台都已裁剪，无有效映射
+	// case "antigravity":
+	// case "openai", "claude":
+	return ""
 }
 
 // MixedChannelError 混合渠道错误
@@ -3275,71 +3230,9 @@ func (s *adminServiceImpl) ForceOpenAIPrivacy(ctx context.Context, account *Acco
 // 仅当 privacy_mode 已成功设置（"privacy_set"）时跳过；
 // 未设置或之前失败（"privacy_set_failed"）均会重试。
 func (s *adminServiceImpl) EnsureAntigravityPrivacy(ctx context.Context, account *Account) string {
-	if account.Platform != PlatformAntigravity || account.Type != AccountTypeOAuth {
-		return ""
-	}
-	if account.Extra != nil {
-		if existing, ok := account.Extra["privacy_mode"].(string); ok && existing == AntigravityPrivacySet {
-			return existing
-		}
-	}
-
-	token, _ := account.Credentials["access_token"].(string)
-	if token == "" {
-		return ""
-	}
-
-	projectID, _ := account.Credentials["project_id"].(string)
-
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
-
-	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
-	if mode == "" {
-		return ""
-	}
-
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": mode}); err != nil {
-		logger.LegacyPrintf("service.admin", "update_antigravity_privacy_mode_failed: account_id=%d err=%v", account.ID, err)
-		return mode
-	}
-	applyAntigravityPrivacyMode(account, mode)
-	return mode
+	return ""
 }
-
 // ForceAntigravityPrivacy 强制重新设置 Antigravity OAuth 账号隐私，无论当前状态。
 func (s *adminServiceImpl) ForceAntigravityPrivacy(ctx context.Context, account *Account) string {
-	if account.Platform != PlatformAntigravity || account.Type != AccountTypeOAuth {
-		return ""
-	}
-
-	token, _ := account.Credentials["access_token"].(string)
-	if token == "" {
-		return ""
-	}
-
-	projectID, _ := account.Credentials["project_id"].(string)
-
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
-
-	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
-	if mode == "" {
-		return ""
-	}
-
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": mode}); err != nil {
-		logger.LegacyPrintf("service.admin", "force_update_antigravity_privacy_mode_failed: account_id=%d err=%v", account.ID, err)
-		return mode
-	}
-	applyAntigravityPrivacyMode(account, mode)
-	return mode
+	return ""
 }

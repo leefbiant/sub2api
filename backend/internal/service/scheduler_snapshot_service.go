@@ -105,7 +105,7 @@ func (s *SchedulerSnapshotService) Stop() {
 }
 
 func (s *SchedulerSnapshotService) ListSchedulableAccounts(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, bool, error) {
-	useMixed := (platform == PlatformAnthropic || platform == PlatformGemini) && !hasForcePlatform
+	useMixed := platform == "anthropic" && !hasForcePlatform // ❌ REMOVED: Gemini 平台已删除
 	mode := s.resolveMode(platform, hasForcePlatform)
 	bucket := s.bucketFor(groupID, platform, mode)
 
@@ -465,14 +465,15 @@ func (s *SchedulerSnapshotService) rebuildByAccount(ctx context.Context, account
 	if err := s.rebuildBucketsForPlatform(ctx, account.Platform, groupIDs, reason, seen); err != nil && firstErr == nil {
 		firstErr = err
 	}
-	if account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
-		if err := s.rebuildBucketsForPlatform(ctx, PlatformAnthropic, groupIDs, reason, seen); err != nil && firstErr == nil {
-			firstErr = err
-		}
-		if err := s.rebuildBucketsForPlatform(ctx, PlatformGemini, groupIDs, reason, seen); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
+	// ❌ REMOVED: Antigravity 平台已删除，混合调度重建逻辑移除
+	// if account.Platform == "antigravity" && account.IsMixedSchedulingEnabled() {
+	// 	if err := s.rebuildBucketsForPlatform(ctx, "anthropic", groupIDs, reason, seen); err != nil && firstErr == nil {
+	// 		firstErr = err
+	// 	}
+	// 	if err := s.rebuildBucketsForPlatform(ctx, "gemini", groupIDs, reason, seen); err != nil && firstErr == nil {
+	// 		firstErr = err
+	// 	}
+	// }
 	return firstErr
 }
 
@@ -481,7 +482,8 @@ func (s *SchedulerSnapshotService) rebuildByGroupIDs(ctx context.Context, groupI
 	if len(groupIDs) == 0 {
 		return nil
 	}
-	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity}
+	// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 anthropic 和 openai
+	platforms := []string{"anthropic", PlatformOpenAI}
 	var firstErr error
 	for _, platform := range platforms {
 		if err := s.rebuildBucketsForPlatform(ctx, platform, groupIDs, reason, seen); err != nil && firstErr == nil {
@@ -514,7 +516,7 @@ func (s *SchedulerSnapshotService) rebuildBucketsForPlatform(ctx context.Context
 		if err := s.rebuildBucket(ctx, SchedulerBucket{GroupID: gid, Platform: platform, Mode: SchedulerModeForced}, reason); err != nil && firstErr == nil {
 			firstErr = err
 		}
-		if platform == PlatformAnthropic || platform == PlatformGemini {
+		if platform == "anthropic" { // ❌ REMOVED: Gemini 平台已删除
 			if err := s.rebuildBucket(ctx, SchedulerBucket{GroupID: gid, Platform: platform, Mode: SchedulerModeMixed}, reason); err != nil && firstErr == nil {
 				firstErr = err
 			}
@@ -640,7 +642,9 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 	}
 
 	if useMixed {
-		platforms := []string{bucket.Platform, PlatformAntigravity}
+		// ❌ REMOVED: Antigravity 平台已删除，useMixed 只对 anthropic 生效
+		// 仍然执行，但 platforms 只包含 anthropic（在上层调用时已经是这样）
+		platforms := []string{bucket.Platform} // bucket.Platform == "anthropic"
 		var accounts []Account
 		var err error
 		if groupID > 0 {
@@ -653,14 +657,8 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 		if err != nil {
 			return nil, err
 		}
-		filtered := make([]Account, 0, len(accounts))
-		for _, acc := range accounts {
-			if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
-				continue
-			}
-			filtered = append(filtered, acc)
-		}
-		return filtered, nil
+		// Antigravity 过滤已不需要（平台不存在）
+		return accounts, nil
 	}
 
 	if groupID > 0 {
@@ -719,7 +717,7 @@ func (s *SchedulerSnapshotService) resolveMode(platform string, hasForcePlatform
 	if hasForcePlatform {
 		return SchedulerModeForced
 	}
-	if platform == PlatformAnthropic || platform == PlatformGemini {
+	if platform == "anthropic" { // ❌ REMOVED: Gemini 平台已删除
 		return SchedulerModeMixed
 	}
 	return SchedulerModeSingle
@@ -780,11 +778,12 @@ func (s *SchedulerSnapshotService) fullRebuildInterval() time.Duration {
 
 func (s *SchedulerSnapshotService) defaultBuckets(ctx context.Context) ([]SchedulerBucket, error) {
 	buckets := make([]SchedulerBucket, 0)
-	platforms := []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity}
+	// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 anthropic 和 openai
+	platforms := []string{"anthropic", PlatformOpenAI}
 	for _, platform := range platforms {
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeSingle})
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeForced})
-		if platform == PlatformAnthropic || platform == PlatformGemini {
+		if platform == "anthropic" { // ❌ REMOVED: Gemini 平台已删除
 			buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeMixed})
 		}
 	}
@@ -803,7 +802,7 @@ func (s *SchedulerSnapshotService) defaultBuckets(ctx context.Context) ([]Schedu
 		}
 		buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeSingle})
 		buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeForced})
-		if group.Platform == PlatformAnthropic || group.Platform == PlatformGemini {
+		if group.Platform == "anthropic" { // ❌ REMOVED: Gemini 平台已删除
 			buckets = append(buckets, SchedulerBucket{GroupID: group.ID, Platform: group.Platform, Mode: SchedulerModeMixed})
 		}
 	}

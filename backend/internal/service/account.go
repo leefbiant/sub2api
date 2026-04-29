@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 type Account struct {
@@ -147,49 +146,61 @@ func (a *Account) IsOAuth() bool {
 
 // IsPrivacySet 检查账号的 privacy 是否已成功设置。
 // OpenAI: privacy_mode == "training_off"
-// Antigravity: privacy_mode == "privacy_set"
-// 其他平台: 无 privacy 概念，始终返回 true
-func (a *Account) IsPrivacySet() bool {
-	switch a.Platform {
-	case PlatformOpenAI:
-		return a.getExtraString("privacy_mode") == PrivacyModeTrainingOff
-	case PlatformAntigravity:
-		return a.getExtraString("privacy_mode") == AntigravityPrivacySet
-	default:
-		return true
-	}
-}
+// ❌ REMOVED: IsPrivacySet — Antigravity platform
+// func (a *Account) IsPrivacySet() bool {
+// 	switch a.Platform {
+// 	case PlatformOpenAI:
+// 		return a.getExtraString("privacy_mode") == PrivacyModeTrainingOff
+// 	case "antigravity":
+// 		return a.getExtraString("privacy_mode") == AntigravityPrivacySet
+// 	default:
+// 		return true
+// 	}
+// }
 
-func (a *Account) IsGemini() bool {
-	return a.Platform == PlatformGemini
-}
+// ❌ REMOVED: IsGemini — Gemini platform
+// func (a *Account) IsGemini() bool {
+// 	return a.Platform == "gemini"
+// }
 
+// ❌ REMOVED: GeminiOAuthType — Gemini platform
+// func (a *Account) GeminiOAuthType() string {
 func (a *Account) GeminiOAuthType() string {
-	if a.Platform != PlatformGemini || a.Type != AccountTypeOAuth {
-		return ""
-	}
-	oauthType := strings.TrimSpace(a.GetCredential("oauth_type"))
-	if oauthType == "" && strings.TrimSpace(a.GetCredential("project_id")) != "" {
-		return "code_assist"
-	}
-	return oauthType
+	return "" // [裁剪] Gemini removed
 }
+// 	if a.Platform != "gemini" || a.Type != AccountTypeOAuth {
+// 		return ""
+// 	}
+// 	oauthType := strings.TrimSpace(a.GetCredential("oauth_type"))
+// 	if oauthType == "" && strings.TrimSpace(a.GetCredential("project_id")) != "" {
+// 		return "code_assist"
+// 	}
+// 	return oauthType
+// }
 
+// ❌ REMOVED: GeminiTierID — Gemini platform
+// func (a *Account) GeminiTierID() string {
 func (a *Account) GeminiTierID() string {
-	tierID := strings.TrimSpace(a.GetCredential("tier_id"))
-	return tierID
+	return "" // [裁剪] Gemini removed
 }
+// 	tierID := strings.TrimSpace(a.GetCredential("tier_id"))
+// 	return tierID
+// }
 
+// ❌ REMOVED: IsGeminiCodeAssist — Gemini platform
+// func (a *Account) IsGeminiCodeAssist() bool {
 func (a *Account) IsGeminiCodeAssist() bool {
-	if a.Platform != PlatformGemini || a.Type != AccountTypeOAuth {
-		return false
-	}
-	oauthType := a.GeminiOAuthType()
-	if oauthType == "" {
-		return strings.TrimSpace(a.GetCredential("project_id")) != ""
-	}
-	return oauthType == "code_assist"
+	return false // [裁剪] Gemini removed
 }
+// 	if a.Platform != "gemini" || a.Type != AccountTypeOAuth {
+// 		return false
+// 	}
+// 	oauthType := a.GeminiOAuthType()
+// 	if oauthType == "" {
+// 		return strings.TrimSpace(a.GetCredential("project_id")) != ""
+// 	}
+// 	return oauthType == "code_assist"
+// }
 
 func (a *Account) CanGetUsage() bool {
 	return a.Type == AccountTypeOAuth
@@ -478,18 +489,18 @@ func (a *Account) GetModelMapping() map[string]string {
 
 func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]string {
 	if a.Credentials == nil {
-		// Antigravity 平台使用默认映射
-		if a.Platform == domain.PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
-		}
+		// ❌ REMOVED: Antigravity default mapping
+		// if a.Platform == domain."antigravity" {
+		// 	return domain.DefaultAntigravityModelMapping
+		// }
 		// Bedrock 默认映射由 forwardBedrock 统一处理（需配合 region prefix 调整）
 		return nil
 	}
 	if len(rawMapping) == 0 {
-		// Antigravity 平台使用默认映射
-		if a.Platform == domain.PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
-		}
+		// ❌ REMOVED: Antigravity default mapping
+		// if a.Platform == domain."antigravity" {
+		// 	return domain.DefaultAntigravityModelMapping
+		// }
 		return nil
 	}
 
@@ -500,20 +511,21 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 		}
 	}
 	if len(result) > 0 {
-		if a.Platform == domain.PlatformAntigravity {
-			ensureAntigravityDefaultPassthroughs(result, []string{
-				"gemini-3-flash",
-				"gemini-3.1-pro-high",
-				"gemini-3.1-pro-low",
-			})
-		}
+		// ❌ REMOVED: Antigravity passthrough defaults
+		// if a.Platform == domain."antigravity" {
+		// 	ensureAntigravityDefaultPassthroughs(result, []string{
+		// 		"gemini-3-flash",
+		// 		"gemini-3.1-pro-high",
+		// 		"gemini-3.1-pro-low",
+		// 	})
+		// }
 		return result
 	}
 
-	// Antigravity 平台使用默认映射
-	if a.Platform == domain.PlatformAntigravity {
-		return domain.DefaultAntigravityModelMapping
-	}
+	// ❌ REMOVED: Antigravity default mapping fallback
+	// if a.Platform == domain."antigravity" {
+	// 	return domain.DefaultAntigravityModelMapping
+	// }
 	return nil
 }
 
@@ -569,19 +581,21 @@ func ensureAntigravityDefaultPassthroughs(mapping map[string]string, models []st
 	}
 }
 
-func normalizeRequestedModelForLookup(platform, requestedModel string) string {
-	trimmed := strings.TrimSpace(requestedModel)
-	if trimmed == "" {
-		return ""
-	}
-	if platform != PlatformGemini && platform != PlatformAntigravity {
-		return trimmed
-	}
-	if trimmed == "gemini-3.1-pro-preview-customtools" {
-		return "gemini-3.1-pro-preview"
-	}
-	return trimmed
-}
+// ❌ REMOVED: normalizeRequestedModelForLookup — Gemini/Antigravity specific
+// Only OpenAI remains; no normalization needed.
+// func normalizeRequestedModelForLookup(platform, requestedModel string) string {
+// 	trimmed := strings.TrimSpace(requestedModel)
+// 	if trimmed == "" {
+// 		return ""
+// 	}
+// 	if platform != "gemini" && platform != "antigravity" {
+// 		return trimmed
+// 	}
+// 	if trimmed == "gemini-3.1-pro-preview-customtools" {
+// 		return "gemini-3.1-pro-preview"
+// 	}
+// 	return trimmed
+// }
 
 func mappingSupportsRequestedModel(mapping map[string]string, requestedModel string) bool {
 	if requestedModel == "" {
@@ -618,8 +632,8 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 	if mappingSupportsRequestedModel(mapping, requestedModel) {
 		return true
 	}
-	normalized := normalizeRequestedModelForLookup(a.Platform, requestedModel)
-	return normalized != requestedModel && mappingSupportsRequestedModel(mapping, normalized)
+	// ❌ REMOVED: normalizeRequestedModelForLookup — only needed for Gemini/Antigravity normalization
+	return false
 }
 
 // GetMappedModel 获取映射后的模型名（支持通配符，最长优先匹配）
@@ -639,12 +653,7 @@ func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string,
 	if mappedModel, matched := resolveRequestedModelInMapping(mapping, requestedModel); matched {
 		return mappedModel, true
 	}
-	normalized := normalizeRequestedModelForLookup(a.Platform, requestedModel)
-	if normalized != requestedModel {
-		if mappedModel, matched := resolveRequestedModelInMapping(mapping, normalized); matched {
-			return mappedModel, true
-		}
-	}
+	// ❌ REMOVED: normalizeRequestedModelForLookup — only needed for Gemini/Antigravity normalization
 	return requestedModel, false
 }
 
@@ -725,26 +734,30 @@ func (a *Account) GetBaseURL() string {
 	}
 	baseURL := a.GetCredential("base_url")
 	if baseURL == "" {
-		return "https://api.anthropic.com"
+		// Default for OpenAI APIKey accounts
+		return "https://api.openai.com"
 	}
-	if a.Platform == PlatformAntigravity {
-		return strings.TrimRight(baseURL, "/") + "/antigravity"
-	}
+	// ❌ REMOVED: Antigravity platform — only OpenAI APIKey accounts remain
+	// if a.Platform == "antigravity" {
+	// 	return strings.TrimRight(baseURL, "/") + "/antigravity"
+	// }
 	return baseURL
 }
 
-// GetGeminiBaseURL 返回 Gemini 兼容端点的 base URL。
-// Antigravity 平台的 APIKey 账号自动拼接 /antigravity。
+// ❌ REMOVED: GetGeminiBaseURL — only called from gemini_messages_compat_service.go (removed)
+// func (a *Account) GetGeminiBaseURL(defaultBaseURL string) string {
 func (a *Account) GetGeminiBaseURL(defaultBaseURL string) string {
-	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
-	if baseURL == "" {
-		return defaultBaseURL
-	}
-	if a.Platform == PlatformAntigravity && a.Type == AccountTypeAPIKey {
-		return strings.TrimRight(baseURL, "/") + "/antigravity"
-	}
-	return baseURL
+	return defaultBaseURL // [裁剪] Gemini removed
 }
+// 	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
+// 	if baseURL == "" {
+// 		return defaultBaseURL
+// 	}
+// 	if a.Platform == "antigravity" && a.Type == AccountTypeAPIKey {
+// 		return strings.TrimRight(baseURL, "/") + "/antigravity"
+// 	}
+// 	return baseURL
+// }
 
 func (a *Account) GetExtraString(key string) string {
 	if a.Extra == nil {
@@ -948,12 +961,30 @@ func (a *Account) IsInterceptWarmupEnabled() bool {
 	return false
 }
 
-func (a *Account) IsBedrock() bool {
-	return a.Platform == PlatformAnthropic && a.Type == AccountTypeBedrock
-}
+// ❌ REMOVED: IsBedrock — Anthropic/Bedrock platform
+// func (a *Account) IsBedrock() bool {
+// 	return false  // "anthropic" removed && a.Type == AccountTypeBedrock
+// }
 
 func (a *Account) IsBedrockAPIKey() bool {
-	return a.IsBedrock() && a.GetCredential("auth_mode") == "apikey"
+	// ❌ REMOVED: IsBedrock() — Anthropic/Bedrock platform
+	return false
+}
+
+// [裁剪] Gemini platform removed — stub to keep IsGemini() callers compiling
+// func (a *Account) IsGemini() bool {
+// 	return a.Platform == "gemini" && a.Type == AccountTypeAPIKey
+// }
+func (a *Account) IsGemini() bool {
+	return false
+}
+
+// [裁剪] Bedrock platform removed — stub to keep IsBedrock() callers compiling
+// func (a *Account) IsBedrock() bool {
+// 	return false  // "anthropic" removed && a.Type == AccountTypeBedrock
+// }
+func (a *Account) IsBedrock() bool {
+	return false
 }
 
 // IsAPIKeyOrBedrock 返回账号类型是否支持配额和池模式等特性
@@ -965,9 +996,10 @@ func (a *Account) IsOpenAI() bool {
 	return a.Platform == PlatformOpenAI
 }
 
-func (a *Account) IsAnthropic() bool {
-	return a.Platform == PlatformAnthropic
-}
+// ❌ REMOVED: IsAnthropic — Anthropic platform
+// func (a *Account) IsAnthropic() bool {
+// 	return false  // "anthropic" removed
+// }
 
 func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
@@ -1089,36 +1121,40 @@ func (a *Account) IsOpenAITokenExpired() bool {
 
 // IsMixedSchedulingEnabled 检查 antigravity 账户是否启用混合调度
 // 启用后可参与 anthropic/gemini 分组的账户调度
+// [裁剪] Antigravity 平台已移除，始终返回 false
 func (a *Account) IsMixedSchedulingEnabled() bool {
-	if a.Platform != PlatformAntigravity {
-		return false
-	}
-	if a.Extra == nil {
-		return false
-	}
-	if v, ok := a.Extra["mixed_scheduling"]; ok {
-		if enabled, ok := v.(bool); ok {
-			return enabled
-		}
-	}
 	return false
 }
 
-// IsOveragesEnabled 检查 Antigravity 账号是否启用 AI Credits 超量请求。
+// [裁剪] 原始 Antigravity 实现已移除
+// func (a *Account) _isMixedSchedulingEnabled_orig() bool {
+// 	if a.Platform != "antigravity" {
+// 		return false
+// 	}
+// 	if a.Extra == nil {
+// 		return false
+// 	}
+
+// [裁剪] Antigravity 平台已移除，始终返回 false
 func (a *Account) IsOveragesEnabled() bool {
-	if a.Platform != PlatformAntigravity {
-		return false
-	}
-	if a.Extra == nil {
-		return false
-	}
-	if v, ok := a.Extra["allow_overages"]; ok {
-		if enabled, ok := v.(bool); ok {
-			return enabled
-		}
-	}
 	return false
 }
+
+// [裁剪] 原始 Antigravity 实现已移除
+// func (a *Account) _IsOveragesEnabled_orig() bool {
+// 	if a.Platform != "antigravity" {
+// 		return false
+// 	}
+// 	if a.Extra == nil {
+// 		return false
+// 	}
+// 	if v, ok := a.Extra["allow_overages"]; ok {
+// 		if enabled, ok := v.(bool); ok {
+// 			return enabled
+// 		}
+// 	}
+// 	return false
+// }
 
 // IsOpenAIPassthroughEnabled 返回 OpenAI 账号是否启用"自动透传（仅替换认证）"。
 //
@@ -1313,7 +1349,7 @@ func (a *Account) IsOpenAIOAuthPassthroughEnabled() bool {
 // 字段：accounts.extra.anthropic_passthrough。
 // 字段缺失或类型不正确时，按 false（关闭）处理。
 func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
-	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+	if a == nil {
 		return false
 	}
 	enabled, ok := a.Extra["anthropic_passthrough"].(bool)
@@ -1331,7 +1367,7 @@ const (
 // 三态：default（跟随渠道）/ enabled（强制开启）/ disabled（强制关闭）。
 // 兼容旧 bool 值：true→enabled, false→default（并记录 debug 日志）。
 func (a *Account) GetWebSearchEmulationMode() string {
-	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+	if a == nil {
 		return WebSearchModeDefault
 	}
 	raw := a.Extra[featureKeyWebSearchEmulation]
@@ -1381,7 +1417,7 @@ const (
 // IsAnthropicOAuthOrSetupToken 判断是否为 Anthropic OAuth 或 SetupToken 类型账号
 // 仅这两类账号支持 5h 窗口额度控制和会话数量控制
 func (a *Account) IsAnthropicOAuthOrSetupToken() bool {
-	return a.Platform == PlatformAnthropic && (a.Type == AccountTypeOAuth || a.Type == AccountTypeSetupToken)
+	return false  // "anthropic" removed && (a.Type == AccountTypeOAuth || a.Type == AccountTypeSetupToken)
 }
 
 // IsTLSFingerprintEnabled 检查是否启用 TLS 指纹伪装
