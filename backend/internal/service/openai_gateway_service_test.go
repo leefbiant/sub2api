@@ -764,7 +764,7 @@ func TestOpenAISelectAccountForModelWithExclusions_StickyNonOpenAI(t *testing.T)
 	sessionHash := "non-openai"
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 1, Platform: "anthropic", Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
 			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
 		},
 	}

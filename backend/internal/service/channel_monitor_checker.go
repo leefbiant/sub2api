@@ -179,40 +179,26 @@ var providerAdapters = map[string]providerAdapter{
 		},
 		textPath: "choices.0.message.content",
 	},
-	MonitorProviderAnthropic: {
-		buildPath: func(string) string { return providerAnthropicPath },
-		buildBody: func(model, prompt string) ([]byte, error) {
-			return json.Marshal(map[string]any{
-				"model":      model,
-				"messages":   []map[string]string{{"role": "user", "content": prompt}},
-				"max_tokens": monitorChallengeMaxTokens,
-			})
-		},
-		buildHeaders: func(apiKey string) map[string]string {
-			return map[string]string{
-				"x-api-key":         apiKey,
-				"anthropic-version": monitorAnthropicAPIVersion,
-			}
-		},
-		textPath: "content.0.text",
-	},
-	MonitorProviderGemini: {
-		// Gemini 把 model 名写在 URL path 上：/v1beta/models/{model}:generateContent
-		buildPath: func(model string) string { return fmt.Sprintf(providerGeminiPathTemplate, model) },
-		buildBody: func(_, prompt string) ([]byte, error) {
-			return json.Marshal(map[string]any{
-				"contents": []map[string]any{
-					{"parts": []map[string]any{{"text": prompt}}},
-				},
-				"generationConfig": map[string]any{"maxOutputTokens": monitorChallengeMaxTokens},
-			})
-		},
-		// 使用 x-goog-api-key header 而不是 ?key= query，避免 *url.Error 把 key 回填到错误日志。
-		buildHeaders: func(apiKey string) map[string]string {
-			return map[string]string{"x-goog-api-key": apiKey}
-		},
-		textPath: "candidates.0.content.parts.0.text",
-	},
+	// ❌ REMOVED: MonitorProviderAnthropic block — Anthropic platform removed
+	// MonitorProviderAnthropic: {
+	// 	buildPath: func(string) string { return providerAnthropicPath },
+	// 	buildBody: func(model, prompt string) ([]byte, error) {
+	// 		return json.Marshal(map[string]any{
+	// 			"model":      model,
+	// 			"messages":   []map[string]string{{"role": "user", "content": prompt}},
+	// 			"max_tokens": monitorChallengeMaxTokens,
+	// 		})
+	// 	},
+	// 	buildHeaders: func(apiKey string) map[string]string {
+	// 		return map[string]string{
+	// 			"x-api-key":         apiKey,
+	// 			"anthropic-version": monitorAnthropicAPIVersion,
+	// 		}
+	// 	},
+	// 	textPath: "content.0.text",
+	// },
+	// ❌ REMOVED: MonitorProviderGemini entry — Gemini platform removed
+	// (kept as placeholder to avoid map syntax issues)
 }
 
 // isSupportedProvider 校验 provider 字符串是否在 adapter 表中。
@@ -322,8 +308,8 @@ func buildRequestBody(adapter providerAdapter, provider, model, prompt string, o
 //nolint:gochecknoglobals // 静态查表，初始化后不变。
 var bodyMergeKeyDenyList = map[string]map[string]bool{
 	MonitorProviderOpenAI:    {"model": true, "messages": true, "stream": true},
-	MonitorProviderAnthropic: {"model": true, "messages": true},
-	MonitorProviderGemini:    {"contents": true},
+	// ❌ REMOVED: MonitorProviderAnthropic: {"model": true, "messages": true}, // Anthropic removed
+	// ❌ REMOVED: MonitorProviderGemini:    {"contents": true},
 }
 
 // postRawJSON 发送 POST + 已序列化好的 JSON 字节，限制响应体大小，返回响应字节、HTTP status、错误。

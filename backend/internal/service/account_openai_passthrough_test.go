@@ -31,7 +31,7 @@ func TestAccount_IsOpenAIPassthroughEnabled(t *testing.T) {
 
 	t.Run("非OpenAI账号始终关闭", func(t *testing.T) {
 		account := &Account{
-			Platform: PlatformAnthropic,
+			Platform: "anthropic",
 			Type:     AccountTypeOAuth,
 			Extra: map[string]any{
 				"openai_passthrough": true,
@@ -125,7 +125,7 @@ func TestAccount_IsCodexCLIOnlyEnabled(t *testing.T) {
 		require.False(t, apiKeyAccount.IsCodexCLIOnlyEnabled())
 
 		otherPlatform := &Account{
-			Platform: PlatformAnthropic,
+			Platform: "anthropic",
 			Type:     AccountTypeOAuth,
 			Extra: map[string]any{
 				"codex_cli_only": true,
@@ -195,7 +195,7 @@ func TestAccount_IsOpenAIResponsesWebSocketV2Enabled(t *testing.T) {
 
 	t.Run("非OpenAI账号默认关闭", func(t *testing.T) {
 		account := &Account{
-			Platform: PlatformAnthropic,
+			Platform: "anthropic",
 			Type:     AccountTypeAPIKey,
 			Extra: map[string]any{
 				"responses_websockets_v2_enabled": true,
@@ -275,7 +275,7 @@ func TestAccount_ResolveOpenAIResponsesWebSocketV2Mode(t *testing.T) {
 
 	t.Run("non openai always off", func(t *testing.T) {
 		account := &Account{
-			Platform: PlatformAnthropic,
+			Platform: "anthropic",
 			Type:     AccountTypeOAuth,
 			Extra: map[string]any{
 				"openai_oauth_responses_websockets_v2_mode": OpenAIWSIngressModeDedicated,
@@ -305,7 +305,7 @@ func TestAccount_OpenAIWSExtraFlags(t *testing.T) {
 	require.False(t, nilAccount.IsOpenAIWSAllowStoreRecoveryEnabled())
 
 	nonOpenAI := &Account{
-		Platform: PlatformAnthropic,
+		Platform: "anthropic",
 		Type:     AccountTypeOAuth,
 		Extra: map[string]any{
 			"openai_ws_allow_store_recovery": true,

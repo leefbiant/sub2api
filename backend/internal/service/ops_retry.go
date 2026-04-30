@@ -46,7 +46,7 @@ type opsRetryRequestType string
 const (
 	opsRetryTypeMessages  opsRetryRequestType = "messages"
 	opsRetryTypeOpenAI    opsRetryRequestType = "openai_responses"
-	opsRetryTypeGeminiV1B opsRetryRequestType = "gemini_v1beta"
+	// ❌ DEAD: opsRetryTypeGeminiV1B opsRetryRequestType = "gemini_v1beta" // unused after platform removal
 )
 
 type limitedResponseWriter struct {
@@ -361,7 +361,7 @@ func (s *OpsService) executeRetry(ctx context.Context, errorLog *OpsErrorLogDeta
 	switch reqType {
 	case opsRetryTypeMessages:
 		bodyBytes = FilterThinkingBlocksForRetry(bodyBytes)
-	case opsRetryTypeOpenAI, opsRetryTypeGeminiV1B:
+	case opsRetryTypeOpenAI: // opsRetryTypeGeminiV1B stubbed out
 		// No-op
 	}
 
@@ -390,7 +390,7 @@ func detectOpsRetryType(path string) opsRetryRequestType {
 	case strings.Contains(p, "/responses"), strings.Contains(p, "/images/"):
 		return opsRetryTypeOpenAI
 	case strings.Contains(p, "/v1beta/"):
-		return opsRetryTypeGeminiV1B
+		return opsRetryTypeMessages // ❌ REMOVED: was opsRetryTypeGeminiV1B
 	default:
 		return opsRetryTypeMessages
 	}
@@ -514,7 +514,7 @@ func (s *OpsService) selectAccountForRetry(ctx context.Context, reqType opsRetry
 			return nil, fmt.Errorf("openai gateway service not available")
 		}
 		return s.openAIGatewayService.SelectAccountWithLoadAwareness(ctx, groupID, "", model, excludedIDs)
-	case opsRetryTypeGeminiV1B, opsRetryTypeMessages:
+	case opsRetryTypeMessages: // opsRetryTypeGeminiV1B merged
 		if s.gatewayService == nil {
 			return nil, fmt.Errorf("gateway service not available")
 		}
@@ -527,7 +527,7 @@ func (s *OpsService) selectAccountForRetry(ctx context.Context, reqType opsRetry
 func extractRetryModelAndStream(reqType opsRetryRequestType, errorLog *OpsErrorLogDetail, body []byte) (model string, stream bool, err error) {
 	switch reqType {
 	case opsRetryTypeMessages:
-		parsed, parseErr := ParseGatewayRequest(body, "anthropic")
+		parsed, parseErr := ParseGatewayRequest(body, PlatformOpenAI) // ❌ Anthropic 已删除
 		if parseErr != nil {
 			return "", false, fmt.Errorf("failed to parse messages request body: %w", parseErr)
 		}
@@ -541,11 +541,7 @@ func extractRetryModelAndStream(reqType opsRetryRequestType, errorLog *OpsErrorL
 			return "", false, fmt.Errorf("failed to parse openai request body: %w", err)
 		}
 		return strings.TrimSpace(v.Model), v.Stream, nil
-	case opsRetryTypeGeminiV1B:
-		if strings.TrimSpace(errorLog.Model) == "" {
-			return "", false, fmt.Errorf("missing model for gemini v1beta retry")
-		}
-		return strings.TrimSpace(errorLog.Model), errorLog.Stream, nil
+	// ❌ REMOVED: case opsRetryTypeGeminiV1B: (was gemini v1beta path)
 	default:
 		return "", false, fmt.Errorf("unsupported retry type: %s", reqType)
 	}
@@ -565,15 +561,14 @@ func (s *OpsService) executeWithAccount(ctx context.Context, reqType opsRetryReq
 			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "openai gateway service not available"}
 		}
 		_, err = s.openAIGatewayService.Forward(ctx, c, account, body)
-	case opsRetryTypeGeminiV1B:
-		// Gemini V1beta retry path removed
-		return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini retry not available"}
+	// ❌ REMOVED case opsRetryTypeGeminiV1B:
+		return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini retry not supported"}
 	case opsRetryTypeMessages:
 		// Gemini/Antigravity platform removed - use gateway service directly
 		if s.gatewayService == nil {
 			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gateway service not available"}
 		}
-		parsedReq, parseErr := ParseGatewayRequest(body, "anthropic")
+		parsedReq, parseErr := ParseGatewayRequest(body, PlatformOpenAI) // ❌ Anthropic 已删除
 		if parseErr != nil {
 			return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: fmt.Sprintf("parse request failed: %s", parseErr.Error())}
 		}

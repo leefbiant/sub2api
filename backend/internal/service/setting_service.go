@@ -2548,15 +2548,13 @@ func (s *SettingService) IsModelFallbackEnabled(ctx context.Context) bool {
 }
 
 // GetFallbackModel 获取指定平台的兜底模型
-// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 anthropic/openai
+// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 openai
 func (s *SettingService) GetFallbackModel(ctx context.Context, platform string) string {
 	switch platform {
-	case "anthropic":
-		return "claude-3-5-sonnet-20241022"
+	// ❌ REMOVED: case "anthropic":
+	// return "claude-3-5-sonnet-20241022"
 	case PlatformOpenAI:
 		return "gpt-4o"
-	// case "gemini": // ❌ REMOVED
-	// case "antigravity": // ❌ REMOVED
 	}
 	return ""
 }

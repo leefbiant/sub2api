@@ -154,7 +154,7 @@ func extractAPIKeyForGoogle(c *gin.Context) string {
 }
 
 func allowGoogleQueryKey(path string) bool {
-	return strings.HasPrefix(path, "/v1beta") || strings.HasPrefix(path, "/antigravity/v1beta")
+	return false // ❌ Gemini/Antigravity removed — no v1beta paths allowed
 }
 
 func abortWithGoogleError(c *gin.Context, status int, message string) {

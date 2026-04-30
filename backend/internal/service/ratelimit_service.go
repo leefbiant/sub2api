@@ -971,7 +971,8 @@ func hasRecoverableRuntimeState(account *Account) bool {
 		return false
 	}
 	return hasNonEmptyMapValue(account.Extra, "model_rate_limits") ||
-		hasNonEmptyMapValue(account.Extra, "antigravity_quota_scopes")
+		// ❌ REMOVED: antigravity_quota_scopes
+		false
 }
 
 func hasNonEmptyMapValue(extra map[string]any, key string) bool {

@@ -29,5 +29,6 @@ type TokenCache interface {
 
 // GeminiTokenCacheKey stub - kept for compatibility with token_cache_invalidator
 func GeminiTokenCacheKey(account *Account) string {
-	return "gemini:account:" + strconv.FormatInt(account.ID, 10)
+	// ❌ REMOVED: Gemini token cache
+	return "openai:account:" + strconv.FormatInt(account.ID, 10)
 }

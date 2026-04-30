@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	// ❌ REMOVED: "github.com/Wei-Shaw/sub2api/internal/pkg/claude" — Anthropic removed
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -64,12 +64,13 @@ func (s *GatewayService) ForwardAsChatCompletions(
 	if account.Type == AccountTypeAPIKey {
 		mappedModel = account.GetMappedModel(originalModel)
 	}
-	if mappedModel == originalModel && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
-		normalized := claude.NormalizeModelID(originalModel)
-		if normalized != originalModel {
-			mappedModel = normalized
-		}
-	}
+	// ❌ REMOVED: Anthropic passthrough — claude.NormalizeModelID block
+	// if mappedModel == originalModel && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
+	// 	normalized := claude.NormalizeModelID(originalModel)
+	// 	if normalized != originalModel {
+	// 		mappedModel = normalized
+	// 	}
+	// }
 	anthropicReq.Model = mappedModel
 
 	logger.L().Debug("gateway forward_as_chat_completions: model mapping applied",

@@ -1064,10 +1064,9 @@ func resolveOpsPlatform(apiKey *service.APIKey, fallback string) string {
 func guessPlatformFromPath(path string) string {
 	p := strings.ToLower(path)
 	switch {
-	case strings.HasPrefix(p, "/antigravity/"):
-		return "antigravity"
 	case strings.HasPrefix(p, "/v1beta/"):
-		return "gemini"
+		// ❌ REMOVED: return "gemini" — Gemini 平台已删除
+		return ""
 	case strings.Contains(p, "/responses"), strings.Contains(p, "/images/"):
 		return service.PlatformOpenAI
 	default:

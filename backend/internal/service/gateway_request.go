@@ -129,7 +129,7 @@ func normalizeSessionUserAgentFallback(raw string) string {
 }
 
 // ParseGatewayRequest 解析网关请求体并返回结构化结果。
-// protocol 指定请求协议格式（domain.PlatformAnthropic / "gemini"），
+// protocol 指定请求协议格式（仅支持 PlatformOpenAI），
 // 不同协议使用不同的 system/messages 字段名。
 func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	// 保持与旧实现一致：请求体必须是合法 JSON。

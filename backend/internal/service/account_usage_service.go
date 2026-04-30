@@ -182,14 +182,14 @@ type UsageInfo struct {
 	GeminiFlashMinute  *UsageProgress `json:"gemini_flash_minute,omitempty"`  // Gemini Flash RPM
 
 	// Antigravity 多模型配额
-	AntigravityQuota map[string]*AntigravityModelQuota `json:"antigravity_quota,omitempty"`
+	// ❌ REMOVED AntigravityQuota map[string]*AntigravityModelQuota `json:"antigravity_quota,omitempty"`
 
 	// Antigravity 账号级信息
 	SubscriptionTier    string `json:"subscription_tier,omitempty"`     // 归一化订阅等级: FREE/PRO/ULTRA/UNKNOWN
 	SubscriptionTierRaw string `json:"subscription_tier_raw,omitempty"` // 上游原始订阅等级名称
 
 	// Antigravity 模型详细能力信息（与 antigravity_quota 同 key）
-	AntigravityQuotaDetails map[string]*AntigravityModelDetail `json:"antigravity_quota_details,omitempty"`
+	// ❌ REMOVED AntigravityQuotaDetails map[string]*AntigravityModelDetail `json:"antigravity_quota_details,omitempty"`
 
 	// Antigravity AI Credits 余额
 	AICredits []AICredit `json:"ai_credits,omitempty"`

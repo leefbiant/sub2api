@@ -144,7 +144,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	setOpsRequestContext(c, "", false, body)
 
-	parsedReq, err := service.ParseGatewayRequest(body, "anthropic")
+	parsedReq, err := service.ParseGatewayRequest(body, service.PlatformOpenAI) // ❌ Anthropic 已删除
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return
@@ -523,7 +523,6 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	for {
 		fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
-		retryWithFallback := false
 
 		for {
 			// 选择支持该模型的账号
@@ -812,13 +811,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						zap.Int64("account_id", account.ID),
 					).Error("gateway.record_usage_failed", zap.Error(err))
 				}
-			})
-			return
-		}
-		if !retryWithFallback {
-			return
-		}
-	}
+	})
+	return
+}
+}
 }
 
 // Models handles listing available models
@@ -1389,7 +1385,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 
 	setOpsRequestContext(c, "", false, body)
 
-	parsedReq, err := service.ParseGatewayRequest(body, "anthropic")
+	parsedReq, err := service.ParseGatewayRequest(body, service.PlatformOpenAI) // ❌ Anthropic 已删除
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 		return

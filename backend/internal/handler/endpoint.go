@@ -85,18 +85,14 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		}
 		return EndpointResponses
 
-	case "anthropic":
-		return EndpointMessages
+	// ❌ REMOVED: case "anthropic":
+	// return EndpointMessages
 
-	case "gemini":
-		return EndpointGeminiModels
+	// ❌ REMOVED: case "gemini":
+	// return EndpointGeminiModels
 
-	case "antigravity":
-		// Antigravity accounts serve both Claude and Gemini.
-		if inbound == EndpointGeminiModels {
-			return EndpointGeminiModels
-		}
-		return EndpointMessages
+	// ❌ REMOVED: case "antigravity":
+	// return EndpointMessages
 	}
 
 	// Unknown platform — fall back to inbound.

@@ -54,8 +54,8 @@ const (
 
 	// MonitorProviderOpenAI / Anthropic / Gemini provider 字符串常量（也是 ent enum 的实际值）。
 	MonitorProviderOpenAI    = "openai"
-	MonitorProviderAnthropic = "anthropic"
-	MonitorProviderGemini    = "gemini"
+	// ❌ REMOVED: MonitorProviderAnthropic = "anthropic" // Anthropic platform removed
+	// ❌ DEAD: MonitorProviderGemini    = "gemini" // unused after platform removal
 
 	// MonitorStatusOperational 等监控状态字符串常量（与 ent enum 一致）。
 	MonitorStatusOperational = "operational"

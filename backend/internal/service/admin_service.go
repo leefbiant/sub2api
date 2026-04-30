@@ -461,25 +461,26 @@ var proxyQualityTargets = []proxyQualityTarget{
 			http.StatusUnauthorized: {},
 		},
 	},
-	{
-		Target: "anthropic",
-		URL:    "https://api.anthropic.com/v1/messages",
-		Method: http.MethodGet,
-		AllowedStatuses: map[int]struct{}{
-			http.StatusUnauthorized:     {},
-			http.StatusMethodNotAllowed: {},
-			http.StatusNotFound:         {},
-			http.StatusBadRequest:       {},
-		},
-	},
-	{
-		Target: "gemini",
-		URL:    "https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta",
-		Method: http.MethodGet,
-		AllowedStatuses: map[int]struct{}{
-			http.StatusOK: {},
-		},
-	},
+// ❌ REMOVED: 	{
+// ❌ REMOVED: 		Target: "anthropic",
+// ❌ REMOVED: 		URL:    "https://api.anthropic.com/v1/messages",
+// ❌ REMOVED: 		Method: http.MethodGet,
+// ❌ REMOVED: 		AllowedStatuses: map[int]struct{}{
+// ❌ REMOVED: 			http.StatusUnauthorized:     {},
+// ❌ REMOVED: 			http.StatusMethodNotAllowed: {},
+// ❌ REMOVED: 			http.StatusNotFound:         {},
+// ❌ REMOVED: 			http.StatusBadRequest:       {},
+// ❌ REMOVED: 		},
+// ❌ REMOVED: 	},
+	// ❌ REMOVED: Gemini health check
+	// {
+	// 	Target: "gemini",
+	// 	URL:    "https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta",
+	// 	Method: http.MethodGet,
+	// 	AllowedStatuses: map[int]struct{}{
+	// 		http.StatusOK: {},
+	// 	},
+	// },
 }
 
 const (

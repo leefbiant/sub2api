@@ -40,8 +40,9 @@ func (r *ClaudeTokenRefresher) CacheKey(account *Account) string {
 // 只处理 anthropic 平台的 oauth 类型账号
 // setup-token 虽然也是OAuth，但有效期1年，不需要频繁刷新
 func (r *ClaudeTokenRefresher) CanRefresh(account *Account) bool {
-	return account.Platform == "anthropic" &&
-		account.Type == AccountTypeOAuth
+	// ❌ REMOVED: Anthropic platform check — always returns false now
+	_ = account // avoid unused
+	return false
 }
 
 // NeedsRefresh 检查token是否需要刷新

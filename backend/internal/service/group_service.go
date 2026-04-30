@@ -89,7 +89,7 @@ func (s *GroupService) Create(ctx context.Context, req CreateGroupRequest) (*Gro
 	group := &Group{
 		Name:             req.Name,
 		Description:      req.Description,
-		Platform:         "anthropic",
+		Platform:         "openai", // ❌ Anthropic 已删除
 		RateMultiplier:   req.RateMultiplier,
 		IsExclusive:      req.IsExclusive,
 		Status:           StatusActive,

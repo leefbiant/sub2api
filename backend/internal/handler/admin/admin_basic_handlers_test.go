@@ -132,33 +132,6 @@ func TestUserHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
-func TestUserHandlerBindAuthIdentityMapsRequest(t *testing.T) {
-	router, adminSvc := setupAdminRouter()
-
-	body, err := json.Marshal(map[string]any{
-		"provider_type":    "oidc",
-		"provider_key":     "https://issuer.example",
-		"provider_subject": "subject-123",
-		"issuer":           "https://issuer.example",
-		"metadata":         map[string]any{"report_id": 12},
-	})
-	require.NoError(t, err)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/users/9/auth-identities", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, int64(9), adminSvc.boundAuthIdentityFor)
-	require.NotNil(t, adminSvc.boundAuthIdentity)
-	require.Equal(t, "oidc", adminSvc.boundAuthIdentity.ProviderType)
-	require.Equal(t, "https://issuer.example", adminSvc.boundAuthIdentity.ProviderKey)
-	require.Equal(t, "subject-123", adminSvc.boundAuthIdentity.ProviderSubject)
-	require.Nil(t, adminSvc.boundAuthIdentity.Channel)
-	require.Equal(t, float64(12), adminSvc.boundAuthIdentity.Metadata["report_id"])
-}
-
 func TestGroupHandlerEndpoints(t *testing.T) {
 	router, _ := setupAdminRouter()
 

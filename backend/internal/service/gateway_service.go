@@ -544,7 +544,6 @@ type GatewayService struct {
 	httpUpstream          HTTPUpstream
 	deferredService       *DeferredService
 	concurrencyService    *ConcurrencyService
-	claudeTokenProvider   *ClaudeTokenProvider
 	sessionLimitCache     SessionLimitCache // 会话数量限制缓存（仅 Anthropic OAuth/SetupToken）
 	rpmCache              RPMCache          // RPM 计数缓存（仅 Anthropic OAuth/SetupToken）
 	userGroupRateResolver *userGroupRateResolver
@@ -582,7 +581,6 @@ func NewGatewayService(
 	identityService *IdentityService,
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
-	claudeTokenProvider *ClaudeTokenProvider,
 	sessionLimitCache SessionLimitCache,
 	rpmCache RPMCache,
 	digestStore *DigestSessionStore,
@@ -614,7 +612,6 @@ func NewGatewayService(
 		identityService:      identityService,
 		httpUpstream:         httpUpstream,
 		deferredService:      deferredService,
-		claudeTokenProvider:  claudeTokenProvider,
 		sessionLimitCache:    sessionLimitCache,
 		rpmCache:             rpmCache,
 		userGroupRateCache:   gocache.New(userGroupRateTTL, time.Minute),
@@ -1476,7 +1473,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		return nil, err
 	}
 	preferOAuth := false // ❌ platform == "gemini": Gemini 平台已删除
-	if s.debugModelRoutingEnabled() && platform == "anthropic" && requestedModel != "" {
+	if s.debugModelRoutingEnabled() && false && platform == "anthropic" && requestedModel != "" { // ❌ Anthropic removed
 		logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] load-aware enabled: group_id=%v model=%s session=%s platform=%s", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), platform)
 	}
 
@@ -1505,25 +1502,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 
 	// 获取模型路由配置（仅 anthropic 平台）
 	var routingAccountIDs []int64
-	if group != nil && requestedModel != "" && group.Platform == "anthropic" {
-		routingAccountIDs = group.GetRoutingAccountIDs(requestedModel)
-		if s.debugModelRoutingEnabled() {
-			logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] context group routing: group_id=%d model=%s enabled=%v rules=%d matched_ids=%v session=%s sticky_account=%d",
-				group.ID, requestedModel, group.ModelRoutingEnabled, len(group.ModelRouting), routingAccountIDs, shortSessionHash(sessionHash), stickyAccountID)
-			if len(routingAccountIDs) == 0 && group.ModelRoutingEnabled && len(group.ModelRouting) > 0 {
-				keys := make([]string, 0, len(group.ModelRouting))
-				for k := range group.ModelRouting {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-				const maxKeys = 20
-				if len(keys) > maxKeys {
-					keys = keys[:maxKeys]
-				}
-				logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] context group routing miss: group_id=%d model=%s patterns(sample)=%v", group.ID, requestedModel, keys)
-			}
-		}
+	if false && group != nil && requestedModel != "" && group.Platform == "anthropic" { // ❌ REMOVED
+		_ = group.GetRoutingAccountIDs // keep for compilation
 	}
+	// ❌ REMOVED: anthropic routing body below (~{lines 1509-1526}), routingAccountIDs stays nil
 
 	// ============ Layer 1: 模型路由优先选择（优先级高于粘性会话） ============
 	if len(routingAccountIDs) > 0 && s.concurrencyService != nil {
@@ -2000,31 +1982,10 @@ func (s *GatewayService) ResolveGroupByID(ctx context.Context, groupID int64) (*
 }
 
 func (s *GatewayService) routingAccountIDsForRequest(ctx context.Context, groupID *int64, requestedModel string, platform string) []int64 {
-	if groupID == nil || requestedModel == "" || platform != "anthropic" {
-		return nil
-	}
-	group, err := s.resolveGroupByID(ctx, *groupID)
-	if err != nil || group == nil {
-		if s.debugModelRoutingEnabled() {
-			logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] resolve group failed: group_id=%v model=%s platform=%s err=%v", derefGroupID(groupID), requestedModel, platform, err)
-		}
-		return nil
-	}
-	// Preserve existing behavior: model routing only applies to anthropic groups.
-	if group.Platform != "anthropic" {
-		if s.debugModelRoutingEnabled() {
-			logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] skip: non-anthropic group platform: group_id=%d group_platform=%s model=%s", group.ID, group.Platform, requestedModel)
-		}
-		return nil
-	}
-	ids := group.GetRoutingAccountIDs(requestedModel)
-	if s.debugModelRoutingEnabled() {
-		logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routing lookup: group_id=%d model=%s enabled=%v rules=%d matched_ids=%v",
-			group.ID, requestedModel, group.ModelRoutingEnabled, len(group.ModelRouting), ids)
-	}
-	return ids
+	// ❌ REMOVED: Anthropic model routing — always returns nil
+	_ = ctx; _ = groupID; _ = requestedModel; _ = platform
+	return nil
 }
-
 func (s *GatewayService) resolveGatewayGroup(ctx context.Context, groupID *int64) (*Group, *int64, error) {
 	if groupID == nil {
 		return nil, nil, nil
@@ -2091,7 +2052,7 @@ func (s *GatewayService) resolvePlatform(ctx context.Context, groupID *int64, gr
 		}
 		return group.Platform, false, nil
 	}
-	return "anthropic", false, nil
+	return PlatformOpenAI, false, nil // ❌ Anthropic removed
 }
 
 func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, bool, error) {
@@ -2206,7 +2167,7 @@ func (s *GatewayService) isAccountAllowedForPlatform(account *Account, platform 
 		if account.Platform == platform {
 			return true
 		}
-		return account.Platform == "antigravity" && account.IsMixedSchedulingEnabled()
+		return false && account.Platform == "antigravity" // Antigravity removed
 	}
 	return account.Platform == platform
 }
@@ -3148,7 +3109,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 // 							_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 // 						}
 // 						if !clearSticky && s.isAccountInGroup(account, groupID) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) && s.isAccountSchedulableForQuota(account) && s.isAccountSchedulableForWindowCost(ctx, account, true) && s.isAccountSchedulableForRPM(ctx, account, true) {
-// 							if account.Platform == nativePlatform || (account.Platform == "antigravity" && account.IsMixedSchedulingEnabled()) {
+// 							if account.Platform == nativePlatform || (false && account.Platform == "antigravity" // Antigravity removed) {
 // 								if s.debugModelRoutingEnabled() {
 // 									logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] legacy mixed routed sticky hit: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), accountID)
 // 								}
@@ -3263,7 +3224,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 // 						_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 // 					}
 // 					if !clearSticky && s.isAccountInGroup(account, groupID) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) && s.isAccountSchedulableForQuota(account) && s.isAccountSchedulableForWindowCost(ctx, account, true) && s.isAccountSchedulableForRPM(ctx, account, true) && !s.isStickyAccountUpstreamRestricted(ctx, groupID, account, requestedModel) {
-// 						if account.Platform == nativePlatform || (account.Platform == "antigravity" && account.IsMixedSchedulingEnabled()) {
+// 						if account.Platform == nativePlatform || (false && account.Platform == "antigravity" // Antigravity removed) {
 // 							return account, nil
 // 						}
 // 					}
@@ -3550,10 +3511,10 @@ func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedMo
 	if account.Platform == PlatformOpenAI && account.IsOpenAIPassthroughEnabled() {
 		return true
 	}
-	// OAuth/SetupToken 账号使用 Anthropic 标准映射（短ID → 长ID）
-	if account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
-		requestedModel = claude.NormalizeModelID(requestedModel)
-	}
+	// ❌ REMOVED: Anthropic model normalization (claude.NormalizeModelID)
+	// if account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
+	// 	requestedModel = claude.NormalizeModelID(requestedModel)
+	// }
 	// 其他平台使用账户的模型支持检查
 	return account.IsModelSupported(requestedModel)
 }
@@ -3578,14 +3539,14 @@ func (s *GatewayService) GetAccessToken(ctx context.Context, account *Account) (
 }
 
 func (s *GatewayService) getOAuthToken(ctx context.Context, account *Account) (string, string, error) {
-	// 对于 Anthropic OAuth 账号，使用 ClaudeTokenProvider 获取缓存的 token
-	if account.Platform == "anthropic" && account.Type == AccountTypeOAuth && s.claudeTokenProvider != nil {
-		accessToken, err := s.claudeTokenProvider.GetAccessToken(ctx, account)
-		if err != nil {
-			return "", "", err
-		}
-		return accessToken, "oauth", nil
-	}
+	// ❌ REMOVED: Anthropic OAuth token — ClaudeTokenProvider no longer used
+	// if account.Platform == "anthropic" && account.Type == AccountTypeOAuth && s.claudeTokenProvider != nil {
+	// 	accessToken, err := s.claudeTokenProvider.GetAccessToken(ctx, account)
+	// 	if err != nil {
+	// 		return "", "", err
+	// 	}
+	// 	return accessToken, "oauth", nil
+	// }
 
 	// 其他情况（Gemini 有自己的 TokenProvider，setup-token 类型等）直接从账号读取
 	accessToken := account.GetCredential("access_token")
@@ -4076,19 +4037,18 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		return s.forwardBedrock(ctx, c, account, parsed, startTime)
 	}
 
-	// Beta policy: evaluate once; block check + cache filter set for buildUpstreamRequest.
-	// Always overwrite the cache to prevent stale values from a previous retry with a different account.
-	if account.Platform == "anthropic" && c != nil {
-		policy := s.evaluateBetaPolicy(ctx, c.GetHeader("anthropic-beta"), account, parsed.Model)
-		if policy.blockErr != nil {
-			return nil, policy.blockErr
-		}
-		filterSet := policy.filterSet
-		if filterSet == nil {
-			filterSet = map[string]struct{}{}
-		}
-		c.Set(betaPolicyFilterSetKey, filterSet)
-	}
+	// ❌ REMOVED: Anthropic beta policy evaluation
+	// if account.Platform == "anthropic" && c != nil {
+	// 	policy := s.evaluateBetaPolicy(ctx, c.GetHeader("anthropic-beta"), account, parsed.Model)
+	// 	if policy.blockErr != nil {
+	// 		return nil, policy.blockErr
+	// 	}
+	// 	filterSet := policy.filterSet
+	// 	if filterSet == nil {
+	// 		filterSet = map[string]struct{}{}
+	// 	}
+	// 	c.Set(betaPolicyFilterSetKey, filterSet)
+	// }
 
 	body := parsed.Body
 	reqModel := parsed.Model
@@ -4174,13 +4134,14 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			mappingSource = "account"
 		}
 	}
-	if mappingSource == "" && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
-		normalized := claude.NormalizeModelID(reqModel)
-		if normalized != reqModel {
-			mappedModel = normalized
-			mappingSource = "prefix"
-		}
-	}
+	// ❌ REMOVED: Anthropic model normalization (claude.NormalizeModelID)
+	// if mappingSource == "" && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
+	// 	normalized := claude.NormalizeModelID(reqModel)
+	// 	if normalized != reqModel {
+	// 		mappedModel = normalized
+	// 		mappingSource = "prefix"
+	// 	}
+	// }
 	if mappedModel != reqModel {
 		// 替换请求体中的模型名
 		body = s.replaceModelInBody(body, mappedModel)
@@ -8395,13 +8356,14 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 				mappingSource = "account"
 			}
 		}
-		if mappingSource == "" && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
-			normalized := claude.NormalizeModelID(reqModel)
-			if normalized != reqModel {
-				mappedModel = normalized
-				mappingSource = "prefix"
-			}
-		}
+		// ❌ REMOVED: Anthropic model normalization (claude.NormalizeModelID)
+		// if mappingSource == "" && account.Platform == "anthropic" && account.Type != AccountTypeAPIKey {
+		// 	normalized := claude.NormalizeModelID(reqModel)
+		// 	if normalized != reqModel {
+		// 		mappedModel = normalized
+		// 		mappingSource = "prefix"
+		// 	}
+		// }
 		if mappedModel != reqModel {
 			body = s.replaceModelInBody(body, mappedModel)
 			reqModel = mappedModel

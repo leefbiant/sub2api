@@ -44,17 +44,17 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 // AccountHandler handles admin account management
 type AccountHandler struct {
-	adminService            service.AdminService
-	oauthService            *service.OAuthService
-	openaiOAuthService      *service.OpenAIOAuthService
-	rateLimitService        *service.RateLimitService
-	accountUsageService     *service.AccountUsageService
-	accountTestService      *service.AccountTestService
-	concurrencyService      *service.ConcurrencyService
-	crsSyncService          *service.CRSSyncService
-	sessionLimitCache       service.SessionLimitCache
-	rpmCache                service.RPMCache
-	tokenCacheInvalidator   service.TokenCacheInvalidator
+	adminService          service.AdminService
+	oauthService          *service.OAuthService
+	openaiOAuthService    *service.OpenAIOAuthService
+	rateLimitService      *service.RateLimitService
+	accountUsageService   *service.AccountUsageService
+	accountTestService    *service.AccountTestService
+	concurrencyService    *service.ConcurrencyService
+	crsSyncService        *service.CRSSyncService
+	sessionLimitCache     service.SessionLimitCache
+	rpmCache              service.RPMCache
+	tokenCacheInvalidator service.TokenCacheInvalidator
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -72,17 +72,17 @@ func NewAccountHandler(
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 ) *AccountHandler {
 	return &AccountHandler{
-		adminService:            adminService,
-		oauthService:            oauthService,
-		openaiOAuthService:      openaiOAuthService,
-		rateLimitService:        rateLimitService,
-		accountUsageService:     accountUsageService,
-		accountTestService:      accountTestService,
-		concurrencyService:      concurrencyService,
-		crsSyncService:          crsSyncService,
-		sessionLimitCache:       sessionLimitCache,
-		rpmCache:                rpmCache,
-		tokenCacheInvalidator:   tokenCacheInvalidator,
+		adminService:          adminService,
+		oauthService:          oauthService,
+		openaiOAuthService:    openaiOAuthService,
+		rateLimitService:      rateLimitService,
+		accountUsageService:   accountUsageService,
+		accountTestService:    accountTestService,
+		concurrencyService:    concurrencyService,
+		crsSyncService:        crsSyncService,
+		sessionLimitCache:     sessionLimitCache,
+		rpmCache:              rpmCache,
+		tokenCacheInvalidator: tokenCacheInvalidator,
 	}
 }
 
@@ -1178,19 +1178,6 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 		// 异步设置隐私，避免批量创建时阻塞请求
 		adminSvc := h.adminService
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 		if len(openaiPrivacyAccounts) > 0 {
 			accounts := openaiPrivacyAccounts
 			go func() {
@@ -1786,51 +1773,6 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	}
 
 	response.BadRequest(c, "Only OpenAI accounts are supported")
-	return
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	// Handle Claude/Anthropic accounts
 	// For OAuth and Setup-Token accounts: return default models
 	if account.IsOAuth() {
@@ -1922,8 +1864,6 @@ func (h *AccountHandler) RefreshTier(c *gin.Context) {
 }
 
 // sanitizeExtraBaseRPM
-
-
 
 // sanitizeExtraBaseRPM 对 extra map 中的 base_rpm 值进行范围校验和归一化。
 // 负值归零，超过 10000 截断为 10000。extra 为 nil 或不含 base_rpm 时无操作。

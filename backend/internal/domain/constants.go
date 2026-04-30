@@ -17,12 +17,12 @@ const (
 )
 
 // Platform constants
-// ❌ REMOVED: Anthropic, Gemini, Antigravity platforms
+// ❌ REMOVED: Anthropic, Gemini, Antigravity, Bedrock platforms — only OpenAI/Codex kept
 const (
-	PlatformAnthropic   = "anthropic"
 	PlatformOpenAI = "openai"
-	// PlatformGemini      = "gemini"    // ❌ REMOVED
-	// PlatformAntigravity = "antigravity" // ❌ REMOVED
+	// ❌ REMOVED: PlatformAnthropic   = "anthropic"
+	// ❌ REMOVED: PlatformGemini      = "gemini"
+	// ❌ REMOVED: PlatformAntigravity = "antigravity"
 )
 
 // Account type constants

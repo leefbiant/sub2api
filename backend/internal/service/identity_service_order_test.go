@@ -61,7 +61,7 @@ func TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder(t 
 
 	account := &Account{
 		ID:       123,
-		Platform: PlatformAnthropic,
+		Platform: "anthropic",
 		Type:     AccountTypeOAuth,
 		Extra: map[string]any{
 			"session_id_masking_enabled": true,

@@ -483,7 +483,7 @@ func (s *SchedulerSnapshotService) rebuildByGroupIDs(ctx context.Context, groupI
 		return nil
 	}
 	// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 anthropic 和 openai
-	platforms := []string{"anthropic", PlatformOpenAI}
+	platforms := []string{PlatformOpenAI} // ❌ Anthropic 已删除
 	var firstErr error
 	for _, platform := range platforms {
 		if err := s.rebuildBucketsForPlatform(ctx, platform, groupIDs, reason, seen); err != nil && firstErr == nil {
@@ -779,13 +779,12 @@ func (s *SchedulerSnapshotService) fullRebuildInterval() time.Duration {
 func (s *SchedulerSnapshotService) defaultBuckets(ctx context.Context) ([]SchedulerBucket, error) {
 	buckets := make([]SchedulerBucket, 0)
 	// ❌ REMOVED: Gemini/Antigravity 平台已删除，仅保留 anthropic 和 openai
-	platforms := []string{"anthropic", PlatformOpenAI}
+	platforms := []string{PlatformOpenAI} // ❌ Anthropic 已删除
 	for _, platform := range platforms {
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeSingle})
 		buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeForced})
-		if platform == "anthropic" { // ❌ REMOVED: Gemini 平台已删除
-			buckets = append(buckets, SchedulerBucket{GroupID: 0, Platform: platform, Mode: SchedulerModeMixed})
-		}
+		// ❌ REMOVED: mixed scheduler for anthropic
+	// if platform == "anthropic" { buckets... }
 	}
 
 	if s.isRunModeSimple() || s.groupRepo == nil {

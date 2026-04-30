@@ -2243,7 +2243,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	// Handle max_output_tokens based on platform and account type
 	if !isCodexCLI {
-		if maxOutputTokens, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
+		if _, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
 			switch account.Platform {
 			case PlatformOpenAI:
 				// For OpenAI API Key, remove max_output_tokens (not supported)
@@ -2253,15 +2253,15 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					bodyModified = true
 					markPatchDelete("max_output_tokens")
 				}
-			case "anthropic":
-				// For Anthropic (Claude), convert to max_tokens
-				delete(reqBody, "max_output_tokens")
-				markPatchDelete("max_output_tokens")
-				if _, hasMaxTokens := reqBody["max_tokens"]; !hasMaxTokens {
-					reqBody["max_tokens"] = maxOutputTokens
-					disablePatch()
-				}
-				bodyModified = true
+			// ❌ REMOVED: case "anthropic":
+			// // For Anthropic (Claude), convert to max_tokens
+			// delete(reqBody, "max_output_tokens")
+			// markPatchDelete("max_output_tokens")
+			// if _, hasMaxTokens := reqBody["max_tokens"]; !hasMaxTokens {
+			//     reqBody["max_tokens"] = maxOutputTokens
+			//     disablePatch()
+			// }
+			// bodyModified = true
 			// case "gemini": // ❌ REMOVED: Gemini 平台已删除
 			default:
 				// For unknown platforms, remove to be safe

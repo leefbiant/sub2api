@@ -206,7 +206,8 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 	}
 	platform := p.Platform
 	if platform == "" {
-		platform = "anthropic"
+		// ❌ Anthropic 已删除，默认使用 OpenAI
+		platform = service.PlatformOpenAI
 	}
 	intervals := make([]pricingIntervalResponse, 0, len(p.Intervals))
 	for _, iv := range p.Intervals {
@@ -350,7 +351,8 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 	// Main model_pricing requires a platform; default to anthropic for backward compatibility.
 	for i := range pricing {
 		if pricing[i].Platform == "" {
-			pricing[i].Platform = "anthropic"
+			// ❌ Anthropic 已删除，默认使用 OpenAI
+			pricing[i].Platform = service.PlatformOpenAI
 		}
 	}
 
@@ -421,12 +423,13 @@ func (h *ChannelHandler) Update(c *gin.Context) {
 	}
 	if req.ModelPricing != nil {
 		pricing := pricingRequestToService(*req.ModelPricing)
-		for i := range pricing {
-			if pricing[i].Platform == "" {
-				pricing[i].Platform = "anthropic"
-			}
+	for i := range pricing {
+		if pricing[i].Platform == "" {
+			// ❌ Anthropic 已删除，默认使用 OpenAI
+			pricing[i].Platform = service.PlatformOpenAI
 		}
-		input.ModelPricing = &pricing
+	}
+	input.ModelPricing = &pricing
 	}
 	if req.AccountStatsPricingRules != nil {
 		statsRules := make([]service.AccountStatsPricingRule, 0, len(*req.AccountStatsPricingRules))

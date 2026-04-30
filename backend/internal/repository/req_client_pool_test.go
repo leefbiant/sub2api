@@ -114,7 +114,7 @@ func TestCreateOpenAIReqClient_Timeout120Seconds(t *testing.T) {
 
 func TestCreateGeminiReqClient_ForceHTTP2Disabled(t *testing.T) {
 	sharedReqClients = sync.Map{}
-	client, err := createGeminiReqClient("http://proxy.local:8080")
+	client, err := createOpenAIReqClient("http://proxy.local:8080")
 	require.NoError(t, err)
 	require.Equal(t, "", forceHTTPVersion(t, client))
 }

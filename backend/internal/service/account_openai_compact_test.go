@@ -15,7 +15,7 @@ func TestAccountGetOpenAICompactMode(t *testing.T) {
 		{
 			name: "non openai account defaults to auto",
 			account: &Account{
-				Platform: PlatformAnthropic,
+				Platform: "anthropic",
 				Extra:    map[string]any{"openai_compact_mode": OpenAICompactModeForceOn},
 			},
 			want: OpenAICompactModeAuto,
@@ -77,7 +77,7 @@ func TestAccountOpenAICompactSupportKnown(t *testing.T) {
 		{
 			name: "non openai account is unknown",
 			account: &Account{
-				Platform: PlatformAnthropic,
+				Platform: "anthropic",
 				Extra:    map[string]any{"openai_compact_supported": true},
 			},
 			wantSupported: false,
@@ -168,7 +168,7 @@ func TestAccountAllowsOpenAICompact(t *testing.T) {
 		{
 			name: "non openai account does not allow compact",
 			account: &Account{
-				Platform: PlatformAnthropic,
+				Platform: "anthropic",
 			},
 			want: false,
 		},

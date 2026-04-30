@@ -68,20 +68,6 @@ func ProvideTokenRefreshService(
 	return svc
 }
 
-// ProvideClaudeTokenProvider creates ClaudeTokenProvider with OAuthRefreshAPI injection
-func ProvideClaudeTokenProvider(
-	accountRepo AccountRepository,
-	tokenCache TokenCache,
-	oauthService *OAuthService,
-	refreshAPI *OAuthRefreshAPI,
-) *ClaudeTokenProvider {
-	p := NewClaudeTokenProvider(accountRepo, tokenCache, oauthService)
-	executor := NewClaudeTokenRefresher(oauthService)
-	p.SetRefreshAPI(refreshAPI, executor)
-	p.SetRefreshPolicy(ClaudeProviderRefreshPolicy())
-	return p
-}
-
 // ProvideOpenAITokenProvider creates OpenAITokenProvider with OAuthRefreshAPI injection
 func ProvideOpenAITokenProvider(
 	accountRepo AccountRepository,
@@ -404,7 +390,6 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
 	ProvideOAuthRefreshAPI,
 	ProvideOpenAITokenProvider,
-	ProvideClaudeTokenProvider,
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,

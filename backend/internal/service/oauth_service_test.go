@@ -438,7 +438,7 @@ func TestOAuthService_RefreshAccountToken_NoRefreshToken(t *testing.T) {
 	// 无 refresh_token 的账号
 	account := &Account{
 		ID:       1,
-		Platform: PlatformAnthropic,
+		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
 			"access_token": "some-token",
@@ -461,7 +461,7 @@ func TestOAuthService_RefreshAccountToken_EmptyRefreshToken(t *testing.T) {
 
 	account := &Account{
 		ID:       2,
-		Platform: PlatformAnthropic,
+		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
 			"access_token":  "some-token",
@@ -496,7 +496,7 @@ func TestOAuthService_RefreshAccountToken_Success(t *testing.T) {
 
 	account := &Account{
 		ID:       3,
-		Platform: PlatformAnthropic,
+		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Credentials: map[string]any{
 			"access_token":  "old-access",
@@ -546,7 +546,7 @@ func TestOAuthService_RefreshAccountToken_WithProxy(t *testing.T) {
 	proxyID := int64(10)
 	account := &Account{
 		ID:       4,
-		Platform: PlatformAnthropic,
+		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		ProxyID:  &proxyID,
 		Credentials: map[string]any{

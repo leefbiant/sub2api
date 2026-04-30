@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -344,7 +343,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			}
 			account := &Account{
 				Name:        defaultName(src.Name, src.ID),
-				Platform:    "anthropic",
+				Platform:    PlatformOpenAI, // ❌ Anthropic 已删除
 				Type:        targetType,
 				Credentials: credentials,
 				Extra:       extra,
@@ -376,7 +375,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 		// Update existing
 		existing.Extra = mergeMap(existing.Extra, extra)
 		existing.Name = defaultName(src.Name, src.ID)
-		existing.Platform = "anthropic"
+		existing.Platform = PlatformOpenAI // ❌ Anthropic 已删除
 		existing.Type = targetType
 		existing.Credentials = mergeMap(existing.Credentials, credentials)
 		if proxyID != nil {
@@ -466,7 +465,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 			}
 			account := &Account{
 				Name:        defaultName(src.Name, src.ID),
-				Platform:    "anthropic",
+				Platform:    PlatformOpenAI,
 				Type:        AccountTypeAPIKey,
 				Credentials: credentials,
 				Extra:       extra,
@@ -491,7 +490,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 
 		existing.Extra = mergeMap(existing.Extra, extra)
 		existing.Name = defaultName(src.Name, src.ID)
-		existing.Platform = "anthropic"
+		existing.Platform = PlatformOpenAI // ❌ Anthropic 已删除
 		existing.Type = AccountTypeAPIKey
 		existing.Credentials = mergeMap(existing.Credentials, credentials)
 		if proxyID != nil {
@@ -771,236 +770,236 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 		result.Items = append(result.Items, item)
 	}
 
-	// Gemini OAuth -> sub2api gemini oauth
-	for _, src := range exported.Data.GeminiOAuthAccounts {
-		item := SyncFromCRSItemResult{
-			CRSAccountID: src.ID,
-			Kind:         src.Kind,
-			Name:         src.Name,
-		}
-
-		refreshToken, _ := src.Credentials["refresh_token"].(string)
-		if strings.TrimSpace(refreshToken) == "" {
-			item.Action = "failed"
-			item.Error = "missing refresh_token"
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
-		if err != nil {
-			item.Action = "failed"
-			item.Error = "proxy sync failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		credentials := sanitizeCredentialsMap(src.Credentials)
-		if v, ok := credentials["token_type"].(string); !ok || strings.TrimSpace(v) == "" {
-			credentials["token_type"] = "Bearer"
-		}
-		// Convert expires_at from RFC3339 to Unix seconds string (recommended to keep consistent with GetCredential())
-		if expiresAtStr, ok := credentials["expires_at"].(string); ok && strings.TrimSpace(expiresAtStr) != "" {
-			if t, err := time.Parse(time.RFC3339, expiresAtStr); err == nil {
-				credentials["expires_at"] = strconv.FormatInt(t.Unix(), 10)
-			}
-		}
-
-		extra := make(map[string]any)
-		if src.Extra != nil {
-			for k, v := range src.Extra {
-				extra[k] = v
-			}
-		}
-		extra["crs_account_id"] = src.ID
-		extra["crs_kind"] = src.Kind
-		extra["crs_synced_at"] = now
-
-		existing, err := s.accountRepo.GetByCRSAccountID(ctx, src.ID)
-		if err != nil {
-			item.Action = "failed"
-			item.Error = "db lookup failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		if existing == nil {
-			if !shouldCreateAccount(src.ID, selectedSet) {
-				item.Action = "skipped"
-				item.Error = "not selected"
-				result.Skipped++
-				result.Items = append(result.Items, item)
-				continue
-			}
-			account := &Account{
-				Name:        defaultName(src.Name, src.ID),
-				Platform:    "gemini",
-				Type:        AccountTypeOAuth,
-				Credentials: credentials,
-				Extra:       extra,
-				ProxyID:     proxyID,
-				Concurrency: 3,
-				Priority:    clampPriority(src.Priority),
-				Status:      mapCRSStatus(src.IsActive, src.Status),
-				Schedulable: src.Schedulable,
-			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
-				item.Action = "failed"
-				item.Error = "create failed: " + err.Error()
-				result.Failed++
-				result.Items = append(result.Items, item)
-				continue
-			}
-			if refreshedCreds := s.refreshOAuthToken(ctx, account); refreshedCreds != nil {
-				_ = persistAccountCredentials(ctx, s.accountRepo, account, refreshedCreds)
-			}
-			item.Action = "created"
-			result.Created++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		existing.Extra = mergeMap(existing.Extra, extra)
-		existing.Name = defaultName(src.Name, src.ID)
-		existing.Platform = "gemini"
-		existing.Type = AccountTypeOAuth
-		existing.Credentials = mergeMap(existing.Credentials, credentials)
-		if proxyID != nil {
-			existing.ProxyID = proxyID
-		}
-		existing.Concurrency = 3
-		existing.Priority = clampPriority(src.Priority)
-		existing.Status = mapCRSStatus(src.IsActive, src.Status)
-		existing.Schedulable = src.Schedulable
-
-		if err := s.accountRepo.Update(ctx, existing); err != nil {
-			item.Action = "failed"
-			item.Error = "update failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		if refreshedCreds := s.refreshOAuthToken(ctx, existing); refreshedCreds != nil {
-			_ = persistAccountCredentials(ctx, s.accountRepo, existing, refreshedCreds)
-		}
-
-		item.Action = "updated"
-		result.Updated++
-		result.Items = append(result.Items, item)
-	}
-
-	// Gemini API Key -> sub2api gemini apikey
-	for _, src := range exported.Data.GeminiAPIKeyAccounts {
-		item := SyncFromCRSItemResult{
-			CRSAccountID: src.ID,
-			Kind:         src.Kind,
-			Name:         src.Name,
-		}
-
-		apiKey, _ := src.Credentials["api_key"].(string)
-		if strings.TrimSpace(apiKey) == "" {
-			item.Action = "failed"
-			item.Error = "missing api_key"
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
-		if err != nil {
-			item.Action = "failed"
-			item.Error = "proxy sync failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		credentials := sanitizeCredentialsMap(src.Credentials)
-		if baseURL, ok := credentials["base_url"].(string); !ok || strings.TrimSpace(baseURL) == "" {
-			credentials["base_url"] = "https://generativelanguage.googleapis.com"
-		}
-
-		extra := make(map[string]any)
-		if src.Extra != nil {
-			for k, v := range src.Extra {
-				extra[k] = v
-			}
-		}
-		extra["crs_account_id"] = src.ID
-		extra["crs_kind"] = src.Kind
-		extra["crs_synced_at"] = now
-
-		existing, err := s.accountRepo.GetByCRSAccountID(ctx, src.ID)
-		if err != nil {
-			item.Action = "failed"
-			item.Error = "db lookup failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		if existing == nil {
-			if !shouldCreateAccount(src.ID, selectedSet) {
-				item.Action = "skipped"
-				item.Error = "not selected"
-				result.Skipped++
-				result.Items = append(result.Items, item)
-				continue
-			}
-			account := &Account{
-				Name:        defaultName(src.Name, src.ID),
-				Platform:    "gemini",
-				Type:        AccountTypeAPIKey,
-				Credentials: credentials,
-				Extra:       extra,
-				ProxyID:     proxyID,
-				Concurrency: 3,
-				Priority:    clampPriority(src.Priority),
-				Status:      mapCRSStatus(src.IsActive, src.Status),
-				Schedulable: src.Schedulable,
-			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
-				item.Action = "failed"
-				item.Error = "create failed: " + err.Error()
-				result.Failed++
-				result.Items = append(result.Items, item)
-				continue
-			}
-			item.Action = "created"
-			result.Created++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		existing.Extra = mergeMap(existing.Extra, extra)
-		existing.Name = defaultName(src.Name, src.ID)
-		existing.Platform = "gemini"
-		existing.Type = AccountTypeAPIKey
-		existing.Credentials = mergeMap(existing.Credentials, credentials)
-		if proxyID != nil {
-			existing.ProxyID = proxyID
-		}
-		existing.Concurrency = 3
-		existing.Priority = clampPriority(src.Priority)
-		existing.Status = mapCRSStatus(src.IsActive, src.Status)
-		existing.Schedulable = src.Schedulable
-
-		if err := s.accountRepo.Update(ctx, existing); err != nil {
-			item.Action = "failed"
-			item.Error = "update failed: " + err.Error()
-			result.Failed++
-			result.Items = append(result.Items, item)
-			continue
-		}
-
-		item.Action = "updated"
-		result.Updated++
-		result.Items = append(result.Items, item)
-	}
+// ❌ REMOVED: 	// Gemini OAuth -> sub2api gemini oauth
+// ❌ REMOVED: 	for _, src := range exported.Data.GeminiOAuthAccounts {
+// ❌ REMOVED: 		item := SyncFromCRSItemResult{
+// ❌ REMOVED: 			CRSAccountID: src.ID,
+// ❌ REMOVED: 			Kind:         src.Kind,
+// ❌ REMOVED: 			Name:         src.Name,
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		refreshToken, _ := src.Credentials["refresh_token"].(string)
+// ❌ REMOVED: 		if strings.TrimSpace(refreshToken) == "" {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "missing refresh_token"
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+// ❌ REMOVED: 		if err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "proxy sync failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		credentials := sanitizeCredentialsMap(src.Credentials)
+// ❌ REMOVED: 		if v, ok := credentials["token_type"].(string); !ok || strings.TrimSpace(v) == "" {
+// ❌ REMOVED: 			credentials["token_type"] = "Bearer"
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 		// Convert expires_at from RFC3339 to Unix seconds string (recommended to keep consistent with GetCredential())
+// ❌ REMOVED: 		if expiresAtStr, ok := credentials["expires_at"].(string); ok && strings.TrimSpace(expiresAtStr) != "" {
+// ❌ REMOVED: 			if t, err := time.Parse(time.RFC3339, expiresAtStr); err == nil {
+// ❌ REMOVED: 				credentials["expires_at"] = strconv.FormatInt(t.Unix(), 10)
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		extra := make(map[string]any)
+// ❌ REMOVED: 		if src.Extra != nil {
+// ❌ REMOVED: 			for k, v := range src.Extra {
+// ❌ REMOVED: 				extra[k] = v
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 		extra["crs_account_id"] = src.ID
+// ❌ REMOVED: 		extra["crs_kind"] = src.Kind
+// ❌ REMOVED: 		extra["crs_synced_at"] = now
+// ❌ REMOVED: 
+// ❌ REMOVED: 		existing, err := s.accountRepo.GetByCRSAccountID(ctx, src.ID)
+// ❌ REMOVED: 		if err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "db lookup failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		if existing == nil {
+// ❌ REMOVED: 			if !shouldCreateAccount(src.ID, selectedSet) {
+// ❌ REMOVED: 				item.Action = "skipped"
+// ❌ REMOVED: 				item.Error = "not selected"
+// ❌ REMOVED: 				result.Skipped++
+// ❌ REMOVED: 				result.Items = append(result.Items, item)
+// ❌ REMOVED: 				continue
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			account := &Account{
+// ❌ REMOVED: 				Name:        defaultName(src.Name, src.ID),
+// ❌ REMOVED: 				Platform:    "gemini",
+// ❌ REMOVED: 				Type:        AccountTypeOAuth,
+// ❌ REMOVED: 				Credentials: credentials,
+// ❌ REMOVED: 				Extra:       extra,
+// ❌ REMOVED: 				ProxyID:     proxyID,
+// ❌ REMOVED: 				Concurrency: 3,
+// ❌ REMOVED: 				Priority:    clampPriority(src.Priority),
+// ❌ REMOVED: 				Status:      mapCRSStatus(src.IsActive, src.Status),
+// ❌ REMOVED: 				Schedulable: src.Schedulable,
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			if err := s.accountRepo.Create(ctx, account); err != nil {
+// ❌ REMOVED: 				item.Action = "failed"
+// ❌ REMOVED: 				item.Error = "create failed: " + err.Error()
+// ❌ REMOVED: 				result.Failed++
+// ❌ REMOVED: 				result.Items = append(result.Items, item)
+// ❌ REMOVED: 				continue
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			if refreshedCreds := s.refreshOAuthToken(ctx, account); refreshedCreds != nil {
+// ❌ REMOVED: 				_ = persistAccountCredentials(ctx, s.accountRepo, account, refreshedCreds)
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			item.Action = "created"
+// ❌ REMOVED: 			result.Created++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		existing.Extra = mergeMap(existing.Extra, extra)
+// ❌ REMOVED: 		existing.Name = defaultName(src.Name, src.ID)
+// ❌ REMOVED: 		existing.Platform = "gemini"
+// ❌ REMOVED: 		existing.Type = AccountTypeOAuth
+// ❌ REMOVED: 		existing.Credentials = mergeMap(existing.Credentials, credentials)
+// ❌ REMOVED: 		if proxyID != nil {
+// ❌ REMOVED: 			existing.ProxyID = proxyID
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 		existing.Concurrency = 3
+// ❌ REMOVED: 		existing.Priority = clampPriority(src.Priority)
+// ❌ REMOVED: 		existing.Status = mapCRSStatus(src.IsActive, src.Status)
+// ❌ REMOVED: 		existing.Schedulable = src.Schedulable
+// ❌ REMOVED: 
+// ❌ REMOVED: 		if err := s.accountRepo.Update(ctx, existing); err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "update failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		if refreshedCreds := s.refreshOAuthToken(ctx, existing); refreshedCreds != nil {
+// ❌ REMOVED: 			_ = persistAccountCredentials(ctx, s.accountRepo, existing, refreshedCreds)
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		item.Action = "updated"
+// ❌ REMOVED: 		result.Updated++
+// ❌ REMOVED: 		result.Items = append(result.Items, item)
+// ❌ REMOVED: 	}
+// ❌ REMOVED: 
+// ❌ REMOVED: 	// Gemini API Key -> sub2api gemini apikey
+// ❌ REMOVED: 	for _, src := range exported.Data.GeminiAPIKeyAccounts {
+// ❌ REMOVED: 		item := SyncFromCRSItemResult{
+// ❌ REMOVED: 			CRSAccountID: src.ID,
+// ❌ REMOVED: 			Kind:         src.Kind,
+// ❌ REMOVED: 			Name:         src.Name,
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		apiKey, _ := src.Credentials["api_key"].(string)
+// ❌ REMOVED: 		if strings.TrimSpace(apiKey) == "" {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "missing api_key"
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		proxyID, err := s.mapOrCreateProxy(ctx, input.SyncProxies, &proxies, src.Proxy, fmt.Sprintf("crs-%s", src.Name))
+// ❌ REMOVED: 		if err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "proxy sync failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		credentials := sanitizeCredentialsMap(src.Credentials)
+// ❌ REMOVED: 		if baseURL, ok := credentials["base_url"].(string); !ok || strings.TrimSpace(baseURL) == "" {
+// ❌ REMOVED: 			credentials["base_url"] = "https://generativelanguage.googleapis.com"
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		extra := make(map[string]any)
+// ❌ REMOVED: 		if src.Extra != nil {
+// ❌ REMOVED: 			for k, v := range src.Extra {
+// ❌ REMOVED: 				extra[k] = v
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 		extra["crs_account_id"] = src.ID
+// ❌ REMOVED: 		extra["crs_kind"] = src.Kind
+// ❌ REMOVED: 		extra["crs_synced_at"] = now
+// ❌ REMOVED: 
+// ❌ REMOVED: 		existing, err := s.accountRepo.GetByCRSAccountID(ctx, src.ID)
+// ❌ REMOVED: 		if err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "db lookup failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		if existing == nil {
+// ❌ REMOVED: 			if !shouldCreateAccount(src.ID, selectedSet) {
+// ❌ REMOVED: 				item.Action = "skipped"
+// ❌ REMOVED: 				item.Error = "not selected"
+// ❌ REMOVED: 				result.Skipped++
+// ❌ REMOVED: 				result.Items = append(result.Items, item)
+// ❌ REMOVED: 				continue
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			account := &Account{
+// ❌ REMOVED: 				Name:        defaultName(src.Name, src.ID),
+// ❌ REMOVED: 				Platform:    "gemini",
+// ❌ REMOVED: 				Type:        AccountTypeAPIKey,
+// ❌ REMOVED: 				Credentials: credentials,
+// ❌ REMOVED: 				Extra:       extra,
+// ❌ REMOVED: 				ProxyID:     proxyID,
+// ❌ REMOVED: 				Concurrency: 3,
+// ❌ REMOVED: 				Priority:    clampPriority(src.Priority),
+// ❌ REMOVED: 				Status:      mapCRSStatus(src.IsActive, src.Status),
+// ❌ REMOVED: 				Schedulable: src.Schedulable,
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			if err := s.accountRepo.Create(ctx, account); err != nil {
+// ❌ REMOVED: 				item.Action = "failed"
+// ❌ REMOVED: 				item.Error = "create failed: " + err.Error()
+// ❌ REMOVED: 				result.Failed++
+// ❌ REMOVED: 				result.Items = append(result.Items, item)
+// ❌ REMOVED: 				continue
+// ❌ REMOVED: 			}
+// ❌ REMOVED: 			item.Action = "created"
+// ❌ REMOVED: 			result.Created++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		existing.Extra = mergeMap(existing.Extra, extra)
+// ❌ REMOVED: 		existing.Name = defaultName(src.Name, src.ID)
+// ❌ REMOVED: 		existing.Platform = "gemini"
+// ❌ REMOVED: 		existing.Type = AccountTypeAPIKey
+// ❌ REMOVED: 		existing.Credentials = mergeMap(existing.Credentials, credentials)
+// ❌ REMOVED: 		if proxyID != nil {
+// ❌ REMOVED: 			existing.ProxyID = proxyID
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 		existing.Concurrency = 3
+// ❌ REMOVED: 		existing.Priority = clampPriority(src.Priority)
+// ❌ REMOVED: 		existing.Status = mapCRSStatus(src.IsActive, src.Status)
+// ❌ REMOVED: 		existing.Schedulable = src.Schedulable
+// ❌ REMOVED: 
+// ❌ REMOVED: 		if err := s.accountRepo.Update(ctx, existing); err != nil {
+// ❌ REMOVED: 			item.Action = "failed"
+// ❌ REMOVED: 			item.Error = "update failed: " + err.Error()
+// ❌ REMOVED: 			result.Failed++
+// ❌ REMOVED: 			result.Items = append(result.Items, item)
+// ❌ REMOVED: 			continue
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 
+// ❌ REMOVED: 		item.Action = "updated"
+// ❌ REMOVED: 		result.Updated++
+// ❌ REMOVED: 		result.Items = append(result.Items, item)
+// ❌ REMOVED: 	}
 
 	return result, nil
 }
@@ -1334,10 +1333,10 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 		if authType == "" {
 			authType = AccountTypeOAuth
 		}
-		classify(src.ID, src.Kind, src.Name, "anthropic", authType)
+		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, authType)
 	}
 	for _, src := range exported.Data.ClaudeConsoleAccounts {
-		classify(src.ID, src.Kind, src.Name, "anthropic", AccountTypeAPIKey)
+		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeAPIKey)
 	}
 	for _, src := range exported.Data.OpenAIOAuthAccounts {
 		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeOAuth)
@@ -1345,12 +1344,12 @@ func (s *CRSSyncService) PreviewFromCRS(ctx context.Context, input SyncFromCRSIn
 	for _, src := range exported.Data.OpenAIResponsesAccounts {
 		classify(src.ID, src.Kind, src.Name, PlatformOpenAI, AccountTypeAPIKey)
 	}
-	for _, src := range exported.Data.GeminiOAuthAccounts {
-		classify(src.ID, src.Kind, src.Name, "gemini", AccountTypeOAuth)
-	}
-	for _, src := range exported.Data.GeminiAPIKeyAccounts {
-		classify(src.ID, src.Kind, src.Name, "gemini", AccountTypeAPIKey)
-	}
+// ❌ REMOVED: 	for _, src := range exported.Data.GeminiOAuthAccounts {
+// ❌ REMOVED: 		classify(src.ID, src.Kind, src.Name, "gemini", AccountTypeOAuth)
+// ❌ REMOVED: 	}
+// ❌ REMOVED: 	for _, src := range exported.Data.GeminiAPIKeyAccounts {
+// ❌ REMOVED: 		classify(src.ID, src.Kind, src.Name, "gemini", AccountTypeAPIKey)
+// ❌ REMOVED: 	}
 
 	return result, nil
 }

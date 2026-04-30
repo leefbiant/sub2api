@@ -15,31 +15,20 @@ func ensureSimpleModeDefaultGroups(ctx context.Context, client *dbent.Client) er
 	}
 
 	requiredByPlatform := map[string]int{
-		"anthropic":   1,
-		service.PlatformOpenAI:      1,
-		"gemini":      1,
-		"antigravity": 2,
+		// ❌ REMOVED: "anthropic":   1, // Anthropic 平台已删除
+		service.PlatformOpenAI: 1,
 	}
 
-	for platform, minCount := range requiredByPlatform {
-		count, err := client.Group.Query().
+	for platform := range requiredByPlatform {
+		_, err := client.Group.Query().
 			Where(group.PlatformEQ(platform), group.DeletedAtIsNil()).
 			Count(ctx)
 		if err != nil {
 			return fmt.Errorf("count groups for platform %s: %w", platform, err)
 		}
 
-		if platform == "antigravity" {
-			if count < minCount {
-				for i := count; i < minCount; i++ {
-					name := fmt.Sprintf("%s-default-%d", platform, i+1)
-					if err := createGroupIfNotExists(ctx, client, name, platform); err != nil {
-						return err
-					}
-				}
-			}
-			continue
-		}
+		// ❌ REMOVED: Antigravity 平台已删除
+		// if platform == "antigravity" { ... continue }
 
 		// Non-antigravity platforms: ensure <platform>-default exists.
 		name := platform + "-default"
@@ -73,7 +62,6 @@ func createGroupIfNotExists(ctx context.Context, client *dbent.Client, name, pla
 		Save(ctx)
 	if err != nil {
 		if dbent.IsConstraintError(err) {
-			// Concurrent server startups may race on creation; treat as success.
 			return nil
 		}
 		return fmt.Errorf("create default group %s: %w", name, err)

@@ -112,15 +112,15 @@ func (s *FailoverState) HandleFailoverError(
 		zap.Int("switch_count", s.SwitchCount),
 		zap.Int("max_switches", s.MaxSwitches),
 	)
-
-	// Antigravity 平台换号线性递增延时
-	if platform == "antigravity" {
-		delay := time.Duration(s.SwitchCount-1) * time.Second
-		if !sleepWithContext(ctx, delay) {
-			return FailoverCanceled
-		}
-	}
-
+// ❌ REMOVED: 
+// ❌ REMOVED: 	// Antigravity 平台换号线性递增延时
+// ❌ REMOVED: 	if platform == "antigravity" {
+// ❌ REMOVED: 		delay := time.Duration(s.SwitchCount-1) * time.Second
+// ❌ REMOVED: 		if !sleepWithContext(ctx, delay) {
+// ❌ REMOVED: 			return FailoverCanceled
+// ❌ REMOVED: 		}
+// ❌ REMOVED: 	}
+// ❌ REMOVED: 
 	return FailoverContinue
 }
 
