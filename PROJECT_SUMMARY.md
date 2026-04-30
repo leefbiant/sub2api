@@ -1,15 +1,15 @@
 # Sub2API — 项目总结
 
-> 最后更新: 2026-04-30 01:10
+> 最后更新: 2026-05-01 07:58
 
 ## 📁 项目目录
 
 - **根目录**: `/data/sub2api/`
 - **后端**: `/data/sub2api/backend/`
 - **前端**: `/data/sub2api/frontend/`
-- **移出的测试文件**: `/data/sub2api/test_garbage/` (86 个文件)
+- **测试垃圾文件**: `/data/sub2api/test_garbage/` (86 个文件，已提交)
 - **Git 分支**: `feat/remove-gemini-antigravity-platform`
-- **Git 当前提交**: `40ed07b` feat: remove Gemini and Antigravity platform source code
+- **Git 当前提交**: `afe2c64` feat: remove Gemini and Antigravity platform code, archive test files
 
 ## 🛠 编译环境
 
@@ -40,19 +40,19 @@ internal/service/openai_ws_v2/...      ✅ 通过
 
 ### 已知既有测试失败（与本次清理无关）
 
-- `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder` — 原始代码已失败
+- `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder` — 原始代码已失败（JSON 字段顺序问题）
 
 ## 📜 变更概述
 
 ### 删除的平台
 
-| 平台         | 常量                       | 说明     |
-| ------------ | -------------------------- | -------- |
-| ✅ Anthropic | `PlatformAnthropic`        | 已注释   |
-| ✅ Gemini    | `PlatformGemini`           | 已注释   |
-| ✅ Antigravity | `PlatformAntigravity`     | 已注释   |
+| 平台           | 常量                     | 说明   |
+| -------------- | ------------------------ | ------ |
+| ✅ Anthropic   | `PlatformAnthropic`      | 已删除 |
+| ✅ Gemini      | `PlatformGemini`         | 已删除 |
+| ✅ Antigravity | `PlatformAntigravity`    | 已删除 |
 
-保留的平台：**OpenAI**、**Bedrock**
+**保留的平台**: **OpenAI**、**Codex**、**Bedrock**
 
 ### 源文件清理（26 个文件）
 
@@ -66,17 +66,19 @@ internal/service/openai_ws_v2/...      ✅ 通过
 - **同步模块**: `crs_sync_service.go`, `scheduler_snapshot_service.go`
 - **其他**: `simple_mode_default_groups.go`, `group_service.go`, `channel_repo_pricing.go`, `ops_retry.go`, `ratelimit_service.go`, `token_*.go`, `claude_token_provider.go`
 
-### 移出的测试文件（20 个纯 Anthropic/Gemini 测试 → test_garbage/）
+### 移出的测试文件（86 个 → test_garbage/，已提交）
+
+纯 Anthropic/Gemini/Antigravity 测试文件已归档：
 
 ```
-claude_token_provider_test.go         account_anthropic_passthrough_test.go
+claude_token_provider_test.go           account_anthropic_passthrough_test.go
 gateway_anthropic_apikey_passthrough_test.go  bedrock_request_test.go
-bedrock_signer_test.go                gateway_service_bedrock_beta_test.go
+bedrock_signer_test.go                 gateway_service_bedrock_beta_test.go
 gateway_service_bedrock_model_support_test.go  scheduler_snapshot_hydration_test.go
-account_repo_integration_test.go      admin_service_bulk_update_test.go
-admin_service_overages_test.go        admin_service_search_test.go
-failover_loop_test.go                 gateway_channel_restriction_test.go
-oauth_refresh_api_test.go             openai_token_provider_test.go
+account_repo_integration_test.go        admin_service_bulk_update_test.go
+admin_service_overages_test.go          admin_service_search_test.go
+failover_loop_test.go                  gateway_channel_restriction_test.go
+oauth_refresh_api_test.go              openai_token_provider_test.go
 simple_mode_default_groups_integration_test.go  api_key_auth_google_test.go
 wire_gen_test.go                      (及 60+ 之前移入的文件)
 ```
@@ -96,8 +98,8 @@ wire_gen_test.go                      (及 60+ 之前移入的文件)
 
 ### 高优先级
 
-- [ ] **创建 commit**: 将当前 59 个文件变更提交到 `feat/remove-gemini-antigravity-platform`
-- [ ] **删除 test_garbage 中可安全删除的测试文件**: 确认后永久删除，或保留作为参考
+- [ ] **推送分支**: `git push origin feat/remove-gemini-antigravity-platform`
+- [ ] **创建 PR**: 合并到 main 分支
 
 ### 低优先级 / 可选
 
@@ -105,19 +107,21 @@ wire_gen_test.go                      (及 60+ 之前移入的文件)
   - `gateway_service.go:2173` — `account.Platform == "antigravity"` 永远 false（~3 行）
   - `account_handler.go:803` — `account.Platform == "anthropic"` 分支（~3 行）
   - `account_data.go` — 两处 `antigravity` privacy goroutine 块
+- [ ] **清理 test_garbage/**: 确认后永久删除 86 个归档文件
 - [ ] **修复既有测试 `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder`**
 - [ ] **验证线上环境**: 部署新 binary，确认功能正常后关闭旧实例
 - [ ] **更新文档**: README 中移除已删除平台的描述
 
-### 已关闭（此分支已完成）
+### 已完成
 
 - ~~删除所有 Anthropic/Gemini/Antigravity 源文件中的平台分支~~ ✅
 - ~~移出/修复测试文件~~ ✅
 - ~~`go build ./...` 通过~~ ✅
 - ~~`go test ./...` 编译通过~~ ✅
+- ~~创建 commit `afe2c64`~~ ✅
 
 ## ⚠️ 已知风险
 
-1. **测试文件仍留在 `test_garbage/` 中** — 86 个文件未被 `git rm`，当前为未跟踪状态
-2. **既存测试失败** — `TestIdentityService_RewriteUserIDWithMasking` 非本次引入
-3. **死代码残留** — 3 处永远不执行的条件分支，编译不报错但存在
+1. **既存测试失败** — `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder` 非本次引入
+2. **死代码残留** — 3 处永远不执行的条件分支，编译不报错但存在
+3. **test_garbage/ 仍占用空间** — 86 个文件约 ~45000 行代码，建议确认无保留价值后删除
