@@ -7,7 +7,7 @@
 - **根目录**: `/data/sub2api/`
 - **后端**: `/data/sub2api/backend/`
 - **前端**: `/data/sub2api/frontend/`
-- **测试垃圾文件**: `/data/sub2api/test_garbage/` (86 个文件，已提交)
+- **测试垃圾文件**: `/data/sub2api/test_garbage/` (67 个文件已在 afe2c64 中删除，目录已清除)
 - **Git 分支**: `feat/remove-gemini-antigravity-platform`
 - **Git 当前提交**: `afe2c64` feat: remove Gemini and Antigravity platform code, archive test files
 
@@ -66,9 +66,9 @@ internal/service/openai_ws_v2/...      ✅ 通过
 - **同步模块**: `crs_sync_service.go`, `scheduler_snapshot_service.go`
 - **其他**: `simple_mode_default_groups.go`, `group_service.go`, `channel_repo_pricing.go`, `ops_retry.go`, `ratelimit_service.go`, `token_*.go`, `claude_token_provider.go`
 
-### 移出的测试文件（86 个 → test_garbage/，已提交）
+### 移出的测试文件（67 个 → test_garbage/ → 已在 afe2c64 中删除）
 
-纯 Anthropic/Gemini/Antigravity 测试文件已归档：
+纯 Anthropic/Gemini/Antigravity 测试文件已归档并删除：
 
 ```
 claude_token_provider_test.go           account_anthropic_passthrough_test.go
@@ -107,7 +107,7 @@ wire_gen_test.go                      (及 60+ 之前移入的文件)
   - `gateway_service.go:2173` — `account.Platform == "antigravity"` 永远 false（~3 行）
   - `account_handler.go:803` — `account.Platform == "anthropic"` 分支（~3 行）
   - `account_data.go` — 两处 `antigravity` privacy goroutine 块
-- [ ] **清理 test_garbage/**: 确认后永久删除 86 个归档文件
+- [ ] **清理 test_garbage/**: ~~确认后永久删除 86 个归档文件~~ ✅ 已完成（afe2c64）
 - [ ] **修复既有测试 `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder`**
 - [ ] **验证线上环境**: 部署新 binary，确认功能正常后关闭旧实例
 - [ ] **更新文档**: README 中移除已删除平台的描述
