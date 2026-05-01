@@ -801,7 +801,6 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 		// Antigravity OAuth token refresh is no longer supported
 		return nil, "", fmt.Errorf("antigravity platform is no longer supported")
 	} else {
-		// Use Anthropic/Claude OAuth service to refresh token
 		tokenInfo, err := h.oauthService.RefreshAccountToken(ctx, account)
 		if err != nil {
 			return nil, "", err

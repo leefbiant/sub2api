@@ -2167,7 +2167,7 @@ func (s *GatewayService) isAccountAllowedForPlatform(account *Account, platform 
 		if account.Platform == platform {
 			return true
 		}
-		return false && account.Platform == "antigravity" // Antigravity removed
+		return false
 	}
 	return account.Platform == platform
 }
