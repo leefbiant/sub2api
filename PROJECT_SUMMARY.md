@@ -104,11 +104,10 @@ wire_gen_test.go                      (及 60+ 之前移入的文件)
 ### 低优先级 / 可选
 
 - [ ] **清理残余死代码（无编译影响）**:
-  - `gateway_service.go:2173` — `account.Platform == "antigravity"` 永远 false（~3 行）
-  - `account_handler.go:803` — `account.Platform == "anthropic"` 分支（~3 行）
-  - `account_data.go` — 两处 `antigravity` privacy goroutine 块
-- [ ] **清理 test_garbage/**: ~~确认后永久删除 86 个归档文件~~ ✅ 已完成（afe2c64）
-- [ ] **修复既有测试 `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder`**
+  - ~~`gateway_service.go:2173` — `account.Platform == "antigravity"` 永远 false（~3 行）~~ ✅
+  - ~~`account_handler.go:803` — `account.Platform == "anthropic"` 分支（~3 行）~~ ✅
+  - ~~`account_data.go` — 两处 `antigravity` privacy goroutine 块~~ ✅（已注释，保留供参考）
+- [ ] **修复既有测试 `TestIdentityService_RewriteUserIDWithMasking_PreservesTopLevelFieldOrder`**: ~~非本次引入~~ ✅ 已修复（IsAnthropicOAuthOrSetupToken 硬返回 false 导致）
 - [ ] **验证线上环境**: 部署新 binary，确认功能正常后关闭旧实例
 - [ ] **更新文档**: README 中移除已删除平台的描述
 
